@@ -73,6 +73,9 @@ LOCAL_HANDOFF_DETAIL_CONCURRENCY = 30
 LOCAL_HANDOFF_BROWSER_POOL_SIZE = 7
 LOCAL_HANDOFF_BROWSER_CONCURRENCY = 7
 LOCAL_HANDOFF_IMAGE_CONCURRENCY = 40
+LOCAL_HANDOFF_ENRICHMENT_CONCURRENCY = 25
+LOCAL_HANDOFF_OVERPASS_CONCURRENCY = 8
+LOCAL_HANDOFF_OVERPASS_JITTER_MAX = 0.25
 LOCAL_HANDOFF_MAX_PHOTOS = 3
 LOCAL_HANDOFF_MAX_REVIEW_IMAGES = 0
 
@@ -266,6 +269,15 @@ def _local_handoff_env_overrides(args: argparse.Namespace) -> dict[str, str]:
         ),
         "SCRAPER_IMAGE_CONCURRENCY": (
             getattr(args, "image_concurrency", None) or LOCAL_HANDOFF_IMAGE_CONCURRENCY
+        ),
+        "SCRAPER_ENRICHMENT_CONCURRENCY": (
+            getattr(args, "enrichment_concurrency", None) or LOCAL_HANDOFF_ENRICHMENT_CONCURRENCY
+        ),
+        "SCRAPER_OVERPASS_CONCURRENCY": (
+            getattr(args, "overpass_concurrency", None) or LOCAL_HANDOFF_OVERPASS_CONCURRENCY
+        ),
+        "SCRAPER_OVERPASS_JITTER_MAX": (
+            getattr(args, "overpass_jitter_max", None) or LOCAL_HANDOFF_OVERPASS_JITTER_MAX
         ),
         "SCRAPER_MAX_PHOTOS": getattr(args, "max_photos", None) or LOCAL_HANDOFF_MAX_PHOTOS,
         "SCRAPER_MAX_REVIEW_IMAGES": (
@@ -936,6 +948,9 @@ def main() -> int:
     bg_parser.add_argument("--browser-pool-size", type=int, default=None)
     bg_parser.add_argument("--browser-concurrency", type=int, default=None)
     bg_parser.add_argument("--image-concurrency", type=int, default=None)
+    bg_parser.add_argument("--enrichment-concurrency", type=int, default=None)
+    bg_parser.add_argument("--overpass-concurrency", type=int, default=None)
+    bg_parser.add_argument("--overpass-jitter-max", type=float, default=None)
     bg_parser.add_argument("--max-review-images", type=int, default=None)
     bg_parser.add_argument("--max-photos", type=int, default=None)
     bg_parser.set_defaults(func=start_local_bg)
@@ -955,6 +970,9 @@ def main() -> int:
     resume_bg_parser.add_argument("--browser-pool-size", type=int, default=None)
     resume_bg_parser.add_argument("--browser-concurrency", type=int, default=None)
     resume_bg_parser.add_argument("--image-concurrency", type=int, default=None)
+    resume_bg_parser.add_argument("--enrichment-concurrency", type=int, default=None)
+    resume_bg_parser.add_argument("--overpass-concurrency", type=int, default=None)
+    resume_bg_parser.add_argument("--overpass-jitter-max", type=float, default=None)
     resume_bg_parser.add_argument("--max-reviews", type=int, default=None)
     resume_bg_parser.add_argument("--max-review-images", type=int, default=None)
     resume_bg_parser.add_argument("--max-photos", type=int, default=None)

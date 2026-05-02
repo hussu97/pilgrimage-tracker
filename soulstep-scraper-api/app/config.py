@@ -84,7 +84,7 @@ class Settings:
     detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "8"))
     # Max concurrent places enriched in parallel. Keep ≤ pool_size so each
     # concurrent worker can always get a DB connection without overflow.
-    enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "5"))
+    enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "10"))
     # Max concurrent Overpass API calls (across all enrichment workers).
     overpass_concurrency: int = int(os.environ.get("SCRAPER_OVERPASS_CONCURRENCY", "2"))
     # Max jitter sleep (seconds) added before each Overpass call to spread burst.

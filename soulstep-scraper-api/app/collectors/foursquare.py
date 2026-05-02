@@ -26,6 +26,22 @@ class FoursquareCollector(BaseCollector):
 
     SEARCH_URL = "https://api.foursquare.com/v3/places/match"
     TIPS_URL = "https://api.foursquare.com/v3/places/{fsq_id}/tips"
+    _auth_disabled = False
+    _auth_disabled_reason: str | None = None
+
+    def is_available(self) -> bool:
+        return super().is_available() and not self.__class__._auth_disabled
+
+    @classmethod
+    def _disable_after_auth_failure(cls, status_code: int) -> None:
+        if cls._auth_disabled:
+            return
+        cls._auth_disabled = True
+        cls._auth_disabled_reason = (
+            f"Foursquare disabled for this process after HTTP {status_code}; "
+            "check FOURSQUARE_API_KEY"
+        )
+        logger.warning(cls._auth_disabled_reason)
 
     async def collect(
         self,
@@ -38,11 +54,19 @@ class FoursquareCollector(BaseCollector):
         api_key = self._get_api_key()
         if not api_key:
             return self._not_configured_result()
+        if self.__class__._auth_disabled:
+            return self._skip_result(
+                self.__class__._auth_disabled_reason or "Foursquare auth disabled"
+            )
 
         try:
             # Step 1: Match place
             fsq_id = await self._match_place(name, lat, lng, api_key)
             if not fsq_id:
+                if self.__class__._auth_disabled:
+                    return self._skip_result(
+                        self.__class__._auth_disabled_reason or "Foursquare auth disabled"
+                    )
                 return self._skip_result("No Foursquare match found")
 
             # Step 2: Fetch tips
@@ -70,6 +94,9 @@ class FoursquareCollector(BaseCollector):
         async with httpx.AsyncClient(timeout=35.0) as client:
             resp = await client.get(self.SEARCH_URL, headers=headers, params=params)
         if resp.status_code != 200:
+            if resp.status_code in (401, 403):
+                self._disable_after_auth_failure(resp.status_code)
+                return None
             logger.warning("foursquare match HTTP %d for %r", resp.status_code, name)
             return None
 
@@ -89,6 +116,9 @@ class FoursquareCollector(BaseCollector):
         async with httpx.AsyncClient(timeout=35.0) as client:
             resp = await client.get(url, headers=headers, params={"limit": 10})
         if resp.status_code != 200:
+            if resp.status_code in (401, 403):
+                self._disable_after_auth_failure(resp.status_code)
+                return []
             logger.warning("foursquare tips HTTP %d for fsq_id=%s", resp.status_code, fsq_id)
             return []
 

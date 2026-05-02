@@ -430,9 +430,49 @@ class TestPaidCollectors:
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
+        FoursquareCollector._auth_disabled = False
+        FoursquareCollector._auth_disabled_reason = None
         with patch.dict(os.environ, {"FOURSQUARE_API_KEY": ""}, clear=False):
             result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "not_configured"
+
+    async def test_foursquare_auth_failure_disables_collector_for_process(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        class _Response:
+            status_code = 401
+
+        class _Client:
+            calls = 0
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def get(self, *args, **kwargs):
+                self.__class__.calls += 1
+                return _Response()
+
+        FoursquareCollector._auth_disabled = False
+        FoursquareCollector._auth_disabled_reason = None
+        collector = FoursquareCollector()
+
+        with patch.dict(os.environ, {"FOURSQUARE_API_KEY": "bad_key"}, clear=False):
+            with patch("app.collectors.foursquare.httpx.AsyncClient", _Client):
+                first = await collector.collect("gplc_test", 25.0, 55.0, "Test")
+                second = await collector.collect("gplc_test_2", 25.0, 55.0, "Test 2")
+
+        assert first.status == "skipped"
+        assert second.status == "skipped"
+        assert _Client.calls == 1
+        assert FoursquareCollector().is_available() is False
+        FoursquareCollector._auth_disabled = False
+        FoursquareCollector._auth_disabled_reason = None
 
     async def test_outscraper_not_configured(self):
         from app.collectors.outscraper import OutscraperCollector

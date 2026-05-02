@@ -102,9 +102,12 @@ python scripts/handoff.py start-local-bg \
 By default, `start-local-bg` and `resume-bg` use the local handoff tuning
 profile that has worked best for large laptop resumes: discovery concurrency
 `7`, browser pool size `7`, active browser concurrency `7`, detail concurrency
-`30`, image concurrency `40`, max place photos `3`, and review images `0`.
+`30`, image concurrency `40`, enrichment concurrency `25`, Overpass
+concurrency `8`, Overpass jitter max `0.25`, max place photos `3`, and
+review images `0`.
 Pass `--discovery-concurrency`, `--detail-concurrency`, `--browser-pool-size`,
-`--browser-concurrency`, `--image-concurrency`, `--max-photos`, or
+`--browser-concurrency`, `--image-concurrency`, `--enrichment-concurrency`,
+`--overpass-concurrency`, `--overpass-jitter-max`, `--max-photos`, or
 `--max-review-images` only when a specific local run needs different limits.
 
 3. Finalize the completed bundle back into production:

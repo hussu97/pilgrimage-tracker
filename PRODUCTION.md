@@ -335,9 +335,10 @@ python scripts/handoff.py resume-bg --run-code run_abc123
 `start-local-bg` and `resume-bg` default to the large-run local handoff profile:
 `SCRAPER_DISCOVERY_CONCURRENCY=7`, `SCRAPER_DETAIL_CONCURRENCY=30`,
 `MAPS_BROWSER_POOL_SIZE=7`, `MAPS_BROWSER_CONCURRENCY=7`,
-`SCRAPER_IMAGE_CONCURRENCY=40`, `SCRAPER_MAX_PHOTOS=3`, and
-`SCRAPER_MAX_REVIEW_IMAGES=0`. Override those CLI flags only when a specific
-machine or run needs a different safety envelope.
+`SCRAPER_IMAGE_CONCURRENCY=40`, `SCRAPER_ENRICHMENT_CONCURRENCY=25`,
+`SCRAPER_OVERPASS_CONCURRENCY=8`, `SCRAPER_OVERPASS_JITTER_MAX=0.25`,
+`SCRAPER_MAX_PHOTOS=3`, and `SCRAPER_MAX_REVIEW_IMAGES=0`. Override those CLI
+flags only when a specific machine or run needs a different safety envelope.
 
 Operational notes:
 - `POST /api/v1/scraper/runs/{run_code}/handoff/export` also exists on the server and freezes the run by creating a `RunHandoff`.
@@ -476,6 +477,8 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web build-time vars g
 | `SCRAPER_DETAIL_CONCURRENCY` | — | `8` | Max concurrent browser detail-fetch workers. Still capped by `MAPS_BROWSER_CONCURRENCY` when that override is explicitly set. |
 | `SCRAPER_FAIL_FAST_MIN_ATTEMPTS` | — | `500` | Minimum detail-fetch attempts before the auto-pause fail-fast logic can trigger. Set very high values carefully: they delay interruption during systemic failures. |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | — | `10` | Max places enriched in parallel. |
+| `SCRAPER_OVERPASS_CONCURRENCY` | — | `2` | Max concurrent Overpass API calls across enrichment workers. |
+| `SCRAPER_OVERPASS_JITTER_MAX` | — | `1.5` | Max jitter sleep in seconds before each Overpass call to spread bursts. |
 | `SCRAPER_MAX_PHOTOS` | — | `3` | Max photos stored per place. |
 | `SCRAPER_MAX_REVIEWS` | — | `5` | Max reviews scraped per place. |
 | `MAPS_BROWSER_POOL_SIZE` | — | _(defaults to `SCRAPER_DISCOVERY_CONCURRENCY` when unset)_ | Max Playwright contexts kept warm. Leave unset unless you need a separate override. |

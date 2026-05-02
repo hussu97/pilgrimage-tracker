@@ -14,9 +14,12 @@ from scripts.handoff import (
     LOCAL_HANDOFF_BROWSER_POOL_SIZE,
     LOCAL_HANDOFF_DETAIL_CONCURRENCY,
     LOCAL_HANDOFF_DISCOVERY_CONCURRENCY,
+    LOCAL_HANDOFF_ENRICHMENT_CONCURRENCY,
     LOCAL_HANDOFF_IMAGE_CONCURRENCY,
     LOCAL_HANDOFF_MAX_PHOTOS,
     LOCAL_HANDOFF_MAX_REVIEW_IMAGES,
+    LOCAL_HANDOFF_OVERPASS_CONCURRENCY,
+    LOCAL_HANDOFF_OVERPASS_JITTER_MAX,
     _import_bundle_into_db,
     _recent_log_has_errors,
     _refresh_finalize_bundle,
@@ -483,6 +486,9 @@ def test_resume_bg_starts_existing_local_db_with_tuning_overrides(tmp_path, db_s
                 browser_pool_size=3,
                 browser_concurrency=3,
                 image_concurrency=20,
+                enrichment_concurrency=12,
+                overpass_concurrency=4,
+                overpass_jitter_max=0.1,
                 max_reviews=2,
                 max_review_images=0,
                 max_photos=2,
@@ -497,6 +503,9 @@ def test_resume_bg_starts_existing_local_db_with_tuning_overrides(tmp_path, db_s
     assert "SCRAPER_DETAIL_CONCURRENCY=3" in command
     assert "MAPS_BROWSER_POOL_SIZE=3" in command
     assert "MAPS_BROWSER_CONCURRENCY=3" in command
+    assert "SCRAPER_ENRICHMENT_CONCURRENCY=12" in command
+    assert "SCRAPER_OVERPASS_CONCURRENCY=4" in command
+    assert "SCRAPER_OVERPASS_JITTER_MAX=0.1" in command
     assert "SCRAPER_MAX_REVIEW_IMAGES=0" in command
 
 
@@ -541,6 +550,9 @@ def test_resume_bg_uses_local_handoff_tuning_defaults(tmp_path, db_session):
     assert f"MAPS_BROWSER_POOL_SIZE={LOCAL_HANDOFF_BROWSER_POOL_SIZE}" in command
     assert f"MAPS_BROWSER_CONCURRENCY={LOCAL_HANDOFF_BROWSER_CONCURRENCY}" in command
     assert f"SCRAPER_IMAGE_CONCURRENCY={LOCAL_HANDOFF_IMAGE_CONCURRENCY}" in command
+    assert f"SCRAPER_ENRICHMENT_CONCURRENCY={LOCAL_HANDOFF_ENRICHMENT_CONCURRENCY}" in command
+    assert f"SCRAPER_OVERPASS_CONCURRENCY={LOCAL_HANDOFF_OVERPASS_CONCURRENCY}" in command
+    assert f"SCRAPER_OVERPASS_JITTER_MAX={LOCAL_HANDOFF_OVERPASS_JITTER_MAX}" in command
     assert f"SCRAPER_MAX_PHOTOS={LOCAL_HANDOFF_MAX_PHOTOS}" in command
     assert f"SCRAPER_MAX_REVIEW_IMAGES={LOCAL_HANDOFF_MAX_REVIEW_IMAGES}" in command
 

@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-02] — Faster local handoff enrichment
+
+### Backend
+- Added local handoff enrichment tuning defaults and CLI overrides so resumed large runs use `SCRAPER_ENRICHMENT_CONCURRENCY=25`, `SCRAPER_OVERPASS_CONCURRENCY=8`, and `SCRAPER_OVERPASS_JITTER_MAX=0.25` instead of falling back to slow production defaults.
+- Restored the scraper enrichment default to `10` workers and made Foursquare disable itself after auth failures so an invalid key does not add a wasted HTTP call to every remaining place.
+
+### Docs
+- Documented the local enrichment tuning profile and exposed enrichment/Overpass env vars in the production env template.
+
+### Tests
+- Added coverage for handoff enrichment tuning env injection and Foursquare auth-failure short-circuiting.
+
+---
+
 ## [2026-05-02] — Desktop navigation hardening
 
 ### Frontend (web)
