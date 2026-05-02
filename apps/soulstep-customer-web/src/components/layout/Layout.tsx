@@ -83,20 +83,20 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <header className="safe-area-top relative z-[800] hidden border-b border-input-border bg-background-light px-6 py-3 dark:border-dark-border dark:bg-dark-surface md:flex">
         <nav className="mx-auto flex w-full max-w-6xl items-center gap-7 xl:max-w-7xl">
-          <Link
-            to="/home"
+          <a
+            href="/home"
             className="mr-2 flex items-center gap-2 text-lg font-semibold text-primary transition-colors hover:text-primary-hover"
             aria-label="SoulStep"
           >
             <img src="/logo.png" className="h-7 w-7 rounded-lg" alt="" />
             {t('common.appName')}
-          </Link>
+          </a>
 
           <div className="flex items-center gap-1">
             {navItems.map((item) => (
-              <Link
+              <a
                 key={item.href}
-                to={item.href}
+                href={item.href}
                 aria-current={item.active ? 'page' : undefined}
                 className={cn(
                   'relative inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold transition-colors',
@@ -112,7 +112,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 {item.badge && (
                   <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-dark-surface" />
                 )}
-              </Link>
+              </a>
             ))}
           </div>
         </nav>

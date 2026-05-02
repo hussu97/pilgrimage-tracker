@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.run.app https://soul-step.org https://www.soul-step.org https://catalog-api.soul-step.org https://pagead2.googlesyndication.com https://*.adtrafficquality.google",
+      "connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.run.app https://soul-step.org https://www.soul-step.org https://catalog-api.soul-step.org https://pagead2.googlesyndication.com https://*.adtrafficquality.google https://*.ingest.us.sentry.io https://*.ingest.sentry.io",
       'frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com',
       "frame-ancestors 'none'",
     ].join('; ');

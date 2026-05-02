@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-02] — Desktop navigation hardening
+
+### Frontend (web)
+- Switched the desktop header navigation to native anchors so browser navigation still works even if client-side route interception is interrupted by stale app-shell state or runtime noise.
+- Bumped the customer web release marker to refresh returning desktop browsers and allowed Sentry ingest endpoints in CSP to stop production error reporting from being blocked in the console.
+
+### Tests
+- Added customer-web regression coverage for the native desktop header navigation fallback and release marker bump.
+
+---
+
 ## [2026-05-02] — Place image fallback hardening
 
 ### Frontend (web)
