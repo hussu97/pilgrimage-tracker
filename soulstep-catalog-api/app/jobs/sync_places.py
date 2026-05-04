@@ -532,6 +532,16 @@ def sync_places_for_run(
                 summary,
                 base_synced=base_synced,
             )
+            logger.info(
+                "sync_places: progress scanned=%d synced=%d failed=%d "
+                "quality_filtered=%d name_filtered=%d elapsed_s=%.2f",
+                summary.scanned,
+                base_synced + summary.synced,
+                summary.failed,
+                summary.skipped_quality,
+                summary.skipped_name,
+                summary.elapsed_s,
+            )
             last_progress_scanned = summary.scanned
             last_progress_at = now
 

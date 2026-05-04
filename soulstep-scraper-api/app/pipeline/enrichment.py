@@ -236,6 +236,14 @@ async def run_enrichment_pipeline(run_code: str):
                     logger.error("%s: could not persist failed status: %s", place_code, save_err)
 
             completed_count += 1
+            logger.info(
+                "Enrichment place complete: run=%s completed=%d/%d place_code=%s name=%r",
+                run_code,
+                completed_count,
+                len(place_codes),
+                place_code,
+                place_name,
+            )
             logger.debug(
                 "[%d/%d] Enriched %r (%s)",
                 completed_count,

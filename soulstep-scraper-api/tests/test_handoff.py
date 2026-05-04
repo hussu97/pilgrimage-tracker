@@ -29,8 +29,9 @@ from scripts.handoff import (
     monitor_handoffs,
     pause_local,
     resume_bg,
+    status_table,
 )
-from sqlmodel import Session, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.db.models import (
     DataLocation,
@@ -687,6 +688,66 @@ def test_recent_log_errors_ignore_failures_before_latest_start(tmp_path):
     )
 
     assert _recent_log_has_errors(log_path) is True
+
+
+def test_status_table_reports_detail_fetch_rate_and_eta(tmp_path, capsys):
+    run_code = "run_status_table"
+    db_url = f"sqlite:///{tmp_path / f'{run_code}.db'}"
+    engine = create_engine(db_url)
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(
+            ScraperRun(
+                run_code=run_code,
+                location_code="loc_status",
+                status="running",
+                stage="detail_fetch",
+                processed_items=25,
+                total_items=100,
+            )
+        )
+        session.commit()
+
+    log_path = tmp_path / f"{run_code}.log"
+    log_path.write_text(
+        "\n".join(
+            [
+                '{"timestamp":"2026-05-04T00:01:00+00:00","message":"Browser detail fetch for a completed in 1.0s"}',
+                '{"timestamp":"2026-05-04T00:05:00+00:00","message":"Browser detail fetch for b completed in 1.0s"}',
+                '{"timestamp":"2026-05-04T00:20:00+00:00","message":"Browser detail fetch for c completed in 1.0s"}',
+                '{"timestamp":"2026-05-03T23:00:00+00:00","message":"Browser detail fetch for old completed in 1.0s"}',
+            ]
+        )
+    )
+
+    with (
+        patch("scripts.handoff.datetime") as mock_datetime,
+        patch(
+            "scripts.handoff._screen_session_exists",
+            side_effect=lambda name: name == f"soulstep-run_{run_code}",
+        ),
+    ):
+        mock_datetime.now.return_value = datetime.fromisoformat("2026-05-04T00:30:00+00:00")
+        mock_datetime.fromisoformat.side_effect = datetime.fromisoformat
+        mock_datetime.strptime.side_effect = datetime.strptime
+        result = status_table(
+            SimpleNamespace(
+                run_code=[run_code],
+                work_dir=str(tmp_path),
+                prod_dsn=None,
+                window_minutes=30,
+                run_screen_prefix="soulstep-run_",
+                sync_screen_prefix="soulstep-sync-",
+                json=False,
+            )
+        )
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert (
+        "| run_status_table | detail fetch | yes | 25/100 | 25.00% | 0.1 fetched/min | ~12h 30m |"
+        in output
+    )
 
 
 def test_batch_export_returns_independent_handoffs(client, db_session):

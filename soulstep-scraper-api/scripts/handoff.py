@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -78,6 +79,19 @@ LOCAL_HANDOFF_OVERPASS_CONCURRENCY = 8
 LOCAL_HANDOFF_OVERPASS_JITTER_MAX = 0.25
 LOCAL_HANDOFF_MAX_PHOTOS = 3
 LOCAL_HANDOFF_MAX_REVIEW_IMAGES = 0
+STATUS_WINDOW_MINUTES = 30
+
+_DETAIL_FETCH_COMPLETE_RE = re.compile(r"Browser detail fetch .* completed in ")
+_ENRICHMENT_COMPLETE_RE = re.compile(r"Enrichment place complete:")
+_ENRICHMENT_PROGRESS_RE = re.compile(r"Enrichment progress: (?P<done>\d+)/(?P<total>\d+) places")
+_CATALOG_PROGRESS_RE = re.compile(
+    r"sync_places: progress scanned=(?P<scanned>\d+) synced=(?P<synced>\d+) "
+    r"failed=(?P<failed>\d+) quality_filtered=(?P<quality_filtered>\d+) "
+    r"name_filtered=(?P<name_filtered>\d+)"
+)
+_CATALOG_BATCH_RE = re.compile(
+    r"sync_places: processing batch (?P<batch>\d+) \((?P<size>\d+) places\)"
+)
 
 
 def _default_work_dir() -> Path:
@@ -105,6 +119,29 @@ def _screen_session_exists(screen_name: str) -> bool:
 def _screen_quit(screen_name: str) -> None:
     if shutil.which("screen") and _screen_session_exists(screen_name):
         subprocess.run(["screen", "-S", screen_name, "-X", "quit"], check=False)
+
+
+def _local_runner_process_exists(run_code: str, database_url: str, log_path: Path) -> bool:
+    try:
+        rows = _read_process_rows()
+    except Exception:
+        return False
+    sqlite_path = _sqlite_path_from_url(database_url)
+    needles = [
+        f"SCRAPER_RUN_CODE={run_code}",
+        database_url,
+        str(sqlite_path) if sqlite_path else "",
+        str(log_path),
+    ]
+    return any(any(needle and needle in cmd for needle in needles) for _pid, _ppid, cmd in rows)
+
+
+def _catalog_sync_process_exists(run_code: str) -> bool:
+    try:
+        rows = _read_process_rows()
+    except Exception:
+        return False
+    return any(f"sync_places --run-code {run_code}" in cmd for _pid, _ppid, cmd in rows)
 
 
 def _collect_descendant_pids(process_rows: list[tuple[int, int, str]], root_pid: int) -> set[int]:
@@ -418,6 +455,161 @@ def _recent_log_has_errors(path: Path) -> bool:
 
 def _catalog_sync_completed(path: Path) -> bool:
     return "catalog_sync_completed" in _read_recent_log(path)
+
+
+def _parse_log_timestamp(line: str) -> datetime | None:
+    try:
+        payload = json.loads(line)
+    except json.JSONDecodeError:
+        payload = None
+    if isinstance(payload, dict):
+        raw_timestamp = payload.get("timestamp")
+        if isinstance(raw_timestamp, str):
+            try:
+                parsed = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+    match = re.search(r"(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d{3}", line)
+    if match:
+        try:
+            return datetime.strptime(match.group("ts"), "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+        except ValueError:
+            return None
+    return None
+
+
+def _read_recent_log_lines(log_path: Path, *, now: datetime, window_minutes: int) -> list[str]:
+    if not log_path.exists():
+        return []
+    cutoff = now.timestamp() - window_minutes * 60
+    lines: list[str] = []
+    for line in log_path.read_text(errors="ignore").splitlines():
+        timestamp = _parse_log_timestamp(line)
+        if timestamp and timestamp.timestamp() >= cutoff:
+            lines.append(line)
+    return lines
+
+
+def _count_recent_log_matches(
+    log_path: Path,
+    pattern: re.Pattern[str],
+    *,
+    now: datetime,
+    window_minutes: int,
+) -> int:
+    return sum(
+        1
+        for line in _read_recent_log_lines(log_path, now=now, window_minutes=window_minutes)
+        if pattern.search(line)
+    )
+
+
+def _recent_enrichment_delta(log_path: Path, *, now: datetime, window_minutes: int) -> int:
+    recent_lines = _read_recent_log_lines(log_path, now=now, window_minutes=window_minutes)
+    completed = sum(1 for line in recent_lines if _ENRICHMENT_COMPLETE_RE.search(line))
+    if completed:
+        return completed
+
+    progress_values = [
+        int(match.group("done"))
+        for line in recent_lines
+        if (match := _ENRICHMENT_PROGRESS_RE.search(line))
+    ]
+    if len(progress_values) >= 2:
+        return max(progress_values[-1] - progress_values[0], 0)
+    return 0
+
+
+def _recent_catalog_deltas(
+    log_path: Path,
+    *,
+    now: datetime,
+    window_minutes: int,
+    direct_sync: dict[str, object],
+) -> tuple[int, int]:
+    recent_lines = _read_recent_log_lines(log_path, now=now, window_minutes=window_minutes)
+    progress_rows: list[tuple[int, int]] = []
+    batch_scanned = 0
+    for line in recent_lines:
+        progress_match = _CATALOG_PROGRESS_RE.search(line)
+        if progress_match:
+            progress_rows.append(
+                (int(progress_match.group("scanned")), int(progress_match.group("synced")))
+            )
+            continue
+        batch_match = _CATALOG_BATCH_RE.search(line)
+        if batch_match:
+            batch_scanned += int(batch_match.group("size"))
+
+    if len(progress_rows) >= 2:
+        first_scanned, first_synced = progress_rows[0]
+        last_scanned, last_synced = progress_rows[-1]
+        return max(last_scanned - first_scanned, 0), max(last_synced - first_synced, 0)
+
+    synced = int(direct_sync.get("synced") or 0)
+    elapsed_s = float(direct_sync.get("elapsed_s") or 0)
+    fallback_synced = (
+        int(round(synced * min(window_minutes * 60, elapsed_s) / elapsed_s)) if elapsed_s else 0
+    )
+    return batch_scanned, fallback_synced
+
+
+def _rate_per_minute(count: int, window_minutes: int) -> float:
+    return count / window_minutes if window_minutes > 0 else 0.0
+
+
+def _format_rate(rate: float, unit: str) -> str:
+    if rate <= 0:
+        return f"0 {unit}/min"
+    if rate < 0.1:
+        return f"{rate:.2f} {unit}/min"
+    return f"{rate:.1f} {unit}/min"
+
+
+def _format_eta(remaining: int | None, rate_per_minute: float) -> str:
+    if remaining is None:
+        return "unknown"
+    if remaining <= 0:
+        return "complete"
+    if rate_per_minute <= 0:
+        return "unknown"
+    minutes = remaining / rate_per_minute
+    if minutes < 1:
+        return "<1m"
+    hours = int(minutes // 60)
+    mins = int(round(minutes % 60))
+    if hours and mins == 60:
+        hours += 1
+        mins = 0
+    if hours:
+        return f"~{hours}h {mins}m"
+    return f"~{mins}m"
+
+
+def _format_complete(done: int | None, total: int | None) -> str:
+    if done is None or total is None:
+        return "unknown"
+    return f"{done:,}/{total:,}"
+
+
+def _stage_percent(done: int | None, total: int | None) -> str:
+    if done is None or not total:
+        return "unknown"
+    return f"{done / total * 100:.2f}%"
+
+
+def _markdown_table(rows: list[dict[str, str]]) -> str:
+    headers = ["Run Code", "Stage", "Active", "Complete", "Stage %", "30m Avg", "ETA"]
+    keys = ["run_code", "stage", "active", "complete", "stage_percent", "rate", "eta"]
+    lines = [
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join("---" for _ in headers) + " |",
+    ]
+    for row in rows:
+        lines.append("| " + " | ".join(row.get(key, "") for key in keys) + " |")
+    return "\n".join(lines)
 
 
 def _latest_original_bundle(work_dir: Path, run_code: str) -> Path | None:
@@ -904,6 +1096,254 @@ def monitor_handoffs(args: argparse.Namespace) -> int:
     return 0
 
 
+def _local_run_codes(work_dir: Path) -> list[str]:
+    return sorted(path.stem for path in work_dir.glob("run_*.db"))
+
+
+def _newest_existing_path(paths: list[Path]) -> Path:
+    existing = [path for path in paths if path.exists()]
+    if not existing:
+        return paths[0]
+    return max(existing, key=lambda path: path.stat().st_mtime)
+
+
+def _load_run_and_counts(
+    database_url: str,
+    run_code: str,
+) -> tuple[ScraperRun | None, dict[str, int], dict[str, int], int]:
+    engine = create_engine(database_url, echo=False)
+    with Session(engine) as session:
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if not run:
+            return None, {}, {}, 0
+        enrichment_counts = dict(
+            session.exec(
+                select(ScrapedPlace.enrichment_status, func.count())
+                .where(ScrapedPlace.run_code == run_code)
+                .group_by(ScrapedPlace.enrichment_status)
+            ).all()
+        )
+        asset_counts = dict(
+            session.exec(
+                select(ScrapedAsset.status, func.count())
+                .where(ScrapedAsset.run_code == run_code)
+                .group_by(ScrapedAsset.status)
+            ).all()
+        )
+        place_count = session.exec(
+            select(func.count(ScrapedPlace.id)).where(ScrapedPlace.run_code == run_code)
+        ).one()
+    return run, enrichment_counts, asset_counts, int(place_count or 0)
+
+
+def _load_prod_sync_counts(
+    prod_dsn: str | None,
+    run_code: str,
+) -> tuple[ScraperRun | None, int, int]:
+    if not prod_dsn:
+        return None, 0, 0
+    try:
+        engine = create_engine(prod_dsn, echo=False)
+        with Session(engine) as session:
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if not run:
+                return None, 0, 0
+            total_places = session.exec(
+                select(func.count(ScrapedPlace.id)).where(ScrapedPlace.run_code == run_code)
+            ).one()
+            sync_done = session.exec(
+                select(func.count(ScrapedPlace.id))
+                .where(ScrapedPlace.run_code == run_code)
+                .where(
+                    ScrapedPlace.sync_status.in_(
+                        ("synced", "failed", "quality_filtered", "name_filtered")
+                    )
+                )
+            ).one()
+    except Exception:
+        return None, 0, 0
+    return run, int(total_places or 0), int(sync_done or 0)
+
+
+def _status_row_for_run(
+    *,
+    run_code: str,
+    work_dir: Path,
+    prod_dsn: str | None,
+    now: datetime,
+    window_minutes: int,
+    run_screen_prefix: str,
+    sync_screen_prefix: str,
+) -> dict[str, object]:
+    db_path = work_dir / f"{run_code}.db"
+    run_log = work_dir / f"{run_code}.log"
+    sync_log = _newest_existing_path(
+        [
+            work_dir / f"{run_code}.catalog-sync.direct-db.log",
+            work_dir / f"{run_code}.catalog-sync.log",
+        ]
+    )
+    database_url = _default_local_database_url(run_code, work_dir)
+    run_screen_alive = _screen_session_exists(run_screen_prefix + run_code) or (
+        db_path.exists() and _local_runner_process_exists(run_code, database_url, run_log)
+    )
+    sync_screen_alive = _screen_session_exists(
+        sync_screen_prefix + run_code
+    ) or _catalog_sync_process_exists(run_code)
+
+    local_run: ScraperRun | None = None
+    enrichment_counts: dict[str, int] = {}
+    local_place_count = 0
+    if db_path.exists():
+        local_run, enrichment_counts, _asset_counts, local_place_count = _load_run_and_counts(
+            database_url,
+            run_code,
+        )
+
+    prod_run, prod_place_count, prod_sync_done = _load_prod_sync_counts(prod_dsn, run_code)
+    source_run = local_run or prod_run
+    if not source_run:
+        return {
+            "run_code": run_code,
+            "stage": "missing",
+            "active": "no",
+            "complete": "unknown",
+            "stage_percent": "unknown",
+            "rate": "unknown",
+            "eta": "unknown",
+        }
+
+    direct_sync = (prod_run.rate_limit_events or {}).get("direct_catalog_sync") if prod_run else {}
+    direct_sync = direct_sync or {}
+    direct_sync_state = str(direct_sync.get("state") or "")
+    is_catalog_sync = bool(
+        (prod_run and prod_run.stage == "syncing")
+        or direct_sync_state in {"running", "completed", "failed"}
+        or sync_screen_alive
+    )
+
+    if is_catalog_sync:
+        stage = "catalog sync"
+        total = prod_place_count or local_place_count or None
+        done = int(direct_sync.get("scanned") or prod_sync_done or 0)
+        scanned_delta, synced_delta = _recent_catalog_deltas(
+            sync_log,
+            now=now,
+            window_minutes=window_minutes,
+            direct_sync=direct_sync,
+        )
+        scanned_rate = _rate_per_minute(scanned_delta, window_minutes)
+        synced_rate = _rate_per_minute(synced_delta, window_minutes)
+        rate = (
+            f"{_format_rate(scanned_rate, 'processed')}; " f"{_format_rate(synced_rate, 'synced')}"
+        )
+        eta_rate = scanned_rate
+        active = "yes" if sync_screen_alive else "no"
+    elif source_run.stage == "enrichment":
+        stage = "enrichment"
+        total = local_place_count or source_run.total_items
+        done = sum(
+            int(enrichment_counts.get(status, 0) or 0)
+            for status in ("complete", "failed", "filtered")
+        )
+        enriched_delta = _recent_enrichment_delta(
+            run_log,
+            now=now,
+            window_minutes=window_minutes,
+        )
+        eta_rate = _rate_per_minute(enriched_delta, window_minutes)
+        rate = _format_rate(eta_rate, "enriched")
+        active = "yes" if run_screen_alive else "no"
+    elif source_run.stage == "detail_fetch":
+        stage = "detail fetch"
+        total = source_run.total_items
+        done = source_run.processed_items
+        fetched_delta = _count_recent_log_matches(
+            run_log,
+            _DETAIL_FETCH_COMPLETE_RE,
+            now=now,
+            window_minutes=window_minutes,
+        )
+        eta_rate = _rate_per_minute(fetched_delta, window_minutes)
+        rate = _format_rate(eta_rate, "fetched")
+        active = "yes" if run_screen_alive else "no"
+    elif source_run.stage == "image_download":
+        stage = "image drain"
+        total = None
+        done = None
+        eta_rate = 0.0
+        rate = "asset drain"
+        active = "yes" if run_screen_alive else "no"
+    else:
+        stage = source_run.status or "completed"
+        total = source_run.total_items
+        done = source_run.processed_items if source_run.total_items is not None else None
+        eta_rate = 0.0
+        rate = "0/min"
+        active = "yes" if run_screen_alive or sync_screen_alive else "no"
+
+    remaining = (
+        max((total or 0) - (done or 0), 0) if total is not None and done is not None else None
+    )
+    return {
+        "run_code": run_code,
+        "stage": stage,
+        "active": active,
+        "complete": _format_complete(done, total),
+        "stage_percent": _stage_percent(done, total),
+        "rate": rate,
+        "eta": _format_eta(remaining, eta_rate),
+        "raw": {
+            "done": done,
+            "total": total,
+            "remaining": remaining,
+            "run_screen_alive": run_screen_alive,
+            "sync_screen_alive": sync_screen_alive,
+            "local_status": local_run.status if local_run else None,
+            "prod_status": prod_run.status if prod_run else None,
+            "direct_catalog_sync_state": direct_sync_state or None,
+        },
+    }
+
+
+def status_table(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir or _default_work_dir()).resolve()
+    run_codes = args.run_code or _local_run_codes(work_dir)
+    now = datetime.now(UTC)
+    rows = [
+        _status_row_for_run(
+            run_code=run_code,
+            work_dir=work_dir,
+            prod_dsn=args.prod_dsn or os.environ.get("SCRAPER_DATABASE_URL"),
+            now=now,
+            window_minutes=args.window_minutes,
+            run_screen_prefix=args.run_screen_prefix,
+            sync_screen_prefix=args.sync_screen_prefix,
+        )
+        for run_code in run_codes
+    ]
+    if args.json:
+        print(json.dumps({"runs": rows}, indent=2, sort_keys=True))
+    else:
+        table_rows = [
+            {
+                key: str(row.get(key, ""))
+                for key in (
+                    "run_code",
+                    "stage",
+                    "active",
+                    "complete",
+                    "stage_percent",
+                    "rate",
+                    "eta",
+                )
+            }
+            for row in rows
+        ]
+        print(_markdown_table(table_rows))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Portable run handoff utilities")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1037,6 +1477,19 @@ def main() -> int:
     monitor_parser.add_argument("--poll-interval-seconds", type=int, default=30)
     monitor_parser.add_argument("--timeout-seconds", type=int, default=6 * 60 * 60)
     monitor_parser.set_defaults(func=monitor_handoffs)
+
+    status_parser = sub.add_parser(
+        "status-table",
+        help="Print a live markdown table for local handoff and direct catalog sync runs",
+    )
+    status_parser.add_argument("--run-code", action="append", default=None)
+    status_parser.add_argument("--work-dir", default=None)
+    status_parser.add_argument("--prod-dsn", default=None)
+    status_parser.add_argument("--window-minutes", type=int, default=STATUS_WINDOW_MINUTES)
+    status_parser.add_argument("--run-screen-prefix", default="soulstep-run_")
+    status_parser.add_argument("--sync-screen-prefix", default="soulstep-sync-")
+    status_parser.add_argument("--json", action="store_true")
+    status_parser.set_defaults(func=status_table)
 
     args = parser.parse_args()
     return args.func(args)

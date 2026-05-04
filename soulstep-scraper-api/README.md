@@ -132,6 +132,20 @@ formatted through the same shared ingest logic as the `/places/batch` API, and
 written directly to the catalog DB. `scripts/handoff.py monitor` and `finalize-watch` include
 `direct_catalog_*` counters from the production run/activity responses.
 
+For operator status checks, use `status-table`. It prints the same table used
+for local run monitoring: run code, active stage, screen activity, stage
+completion, recent 30-minute throughput, and estimated stage ETA. Detail-fetch
+rates are parsed from browser completion logs, enrichment rates from per-place
+enrichment completion logs, and direct catalog sync rates from catalog progress
+logs/prod scraper counters:
+
+```bash
+python scripts/handoff.py status-table \
+  --run-code run_abc123 \
+  --run-code run_def456 \
+  --prod-dsn postgresql://admin:...@127.0.0.1:5432/soulstep_scraper
+```
+
 For unattended operations, use `finalize-bg`. It refreshes the finalize bundle,
 starts a detached `screen` job, uploads the bundle to production, then polls the
 production run/activity endpoints until the catalog sync completes. Logs and the
