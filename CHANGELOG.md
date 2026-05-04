@@ -48,6 +48,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-04] — Local handoff browser concurrency
+
+### Backend
+- **`soulstep-scraper-api/scripts/handoff.py`** — raised the default local handoff browser profile for `start-local-bg` / `resume-bg` from discovery/browser pool/browser concurrency `7` to `9` while keeping detail concurrency `30`, image concurrency `40`, max place photos `3`, and review images `0`.
+
+### Docs
+- Updated `soulstep-scraper-api/README.md` so the documented local handoff profile and example overrides match the new browser concurrency defaults.
+
+---
+
 ## [2026-05-02] — Faster local handoff enrichment
 
 ### Backend

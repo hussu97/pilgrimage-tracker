@@ -101,7 +101,7 @@ python scripts/handoff.py start-local-bg \
 
 By default, `start-local-bg` and `resume-bg` use the local handoff tuning
 profile that has worked best for large laptop resumes: discovery concurrency
-`7`, browser pool size `7`, active browser concurrency `7`, detail concurrency
+`9`, browser pool size `9`, active browser concurrency `9`, detail concurrency
 `30`, image concurrency `40`, enrichment concurrency `25`, Overpass
 concurrency `8`, Overpass jitter max `0.25`, max place photos `3`, and
 review images `0`.
@@ -176,8 +176,8 @@ background. To resume the same local DB later:
 ```bash
 python scripts/handoff.py resume-bg \
   --run-code run_abc123 \
-  --browser-pool-size 7 \
-  --browser-concurrency 7
+  --browser-pool-size 9 \
+  --browser-concurrency 9
 ```
 
 `resume-bg` is also useful after a laptop sleep/crash: if the old `screen`
