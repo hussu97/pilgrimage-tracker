@@ -52,6 +52,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Backend
 - **`soulstep-scraper-api/scripts/handoff.py`** — added `status-table`, which reports local handoff and direct catalog sync runs in a markdown table with active stage, screen activity, stage completion, 30-minute throughput, and ETA.
+- **`soulstep-scraper-api/scripts/handoff.py`** — status table ETAs are now rendered as absolute Dubai-time completion timestamps instead of duration strings.
 - **`soulstep-scraper-api/app/pipeline/enrichment.py`** — added per-place enrichment completion logs so local enrichment rates and ETAs can be calculated from recent log history.
 - **`soulstep-catalog-api/app/jobs/sync_places.py`** — added direct catalog sync progress logs with scanned/synced/filter counters for recent sync throughput reporting.
 

@@ -729,6 +729,7 @@ def test_status_table_reports_detail_fetch_rate_and_eta(tmp_path, capsys):
     ):
         mock_datetime.now.return_value = datetime.fromisoformat("2026-05-04T00:30:00+00:00")
         mock_datetime.fromisoformat.side_effect = datetime.fromisoformat
+        mock_datetime.fromtimestamp.side_effect = datetime.fromtimestamp
         mock_datetime.strptime.side_effect = datetime.strptime
         result = status_table(
             SimpleNamespace(
@@ -745,8 +746,8 @@ def test_status_table_reports_detail_fetch_rate_and_eta(tmp_path, capsys):
     assert result == 0
     output = capsys.readouterr().out
     assert (
-        "| run_status_table | detail fetch | yes | 25/100 | 25.00% | 0.1 fetched/min | ~12h 30m |"
-        in output
+        "| run_status_table | detail fetch | yes | 25/100 | 25.00% | "
+        "0.1 fetched/min | 2026-05-04 17:00 GST |" in output
     )
 
 

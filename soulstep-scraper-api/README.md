@@ -137,7 +137,8 @@ for local run monitoring: run code, active stage, screen activity, stage
 completion, recent 30-minute throughput, and estimated stage ETA. Detail-fetch
 rates are parsed from browser completion logs, enrichment rates from per-place
 enrichment completion logs, and direct catalog sync rates from catalog progress
-logs/prod scraper counters:
+logs/prod scraper counters. ETA values are shown as absolute Dubai time
+completion timestamps:
 
 ```bash
 python scripts/handoff.py status-table \

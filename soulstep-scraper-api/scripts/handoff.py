@@ -13,6 +13,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import httpx
 from sqlmodel import Session, SQLModel, create_engine, func, select
@@ -80,6 +81,7 @@ LOCAL_HANDOFF_OVERPASS_JITTER_MAX = 0.25
 LOCAL_HANDOFF_MAX_PHOTOS = 3
 LOCAL_HANDOFF_MAX_REVIEW_IMAGES = 0
 STATUS_WINDOW_MINUTES = 30
+STATUS_TIMEZONE = ZoneInfo("Asia/Dubai")
 
 _DETAIL_FETCH_COMPLETE_RE = re.compile(r"Browser detail fetch .* completed in ")
 _ENRICHMENT_COMPLETE_RE = re.compile(r"Enrichment place complete:")
@@ -568,7 +570,7 @@ def _format_rate(rate: float, unit: str) -> str:
     return f"{rate:.1f} {unit}/min"
 
 
-def _format_eta(remaining: int | None, rate_per_minute: float) -> str:
+def _format_eta(remaining: int | None, rate_per_minute: float, *, now: datetime) -> str:
     if remaining is None:
         return "unknown"
     if remaining <= 0:
@@ -577,15 +579,9 @@ def _format_eta(remaining: int | None, rate_per_minute: float) -> str:
         return "unknown"
     minutes = remaining / rate_per_minute
     if minutes < 1:
-        return "<1m"
-    hours = int(minutes // 60)
-    mins = int(round(minutes % 60))
-    if hours and mins == 60:
-        hours += 1
-        mins = 0
-    if hours:
-        return f"~{hours}h {mins}m"
-    return f"~{mins}m"
+        minutes = 1
+    completion = datetime.fromtimestamp(now.timestamp() + minutes * 60, tz=STATUS_TIMEZONE)
+    return completion.strftime("%Y-%m-%d %H:%M GST")
 
 
 def _format_complete(done: int | None, total: int | None) -> str:
@@ -1292,7 +1288,7 @@ def _status_row_for_run(
         "complete": _format_complete(done, total),
         "stage_percent": _stage_percent(done, total),
         "rate": rate,
-        "eta": _format_eta(remaining, eta_rate),
+        "eta": _format_eta(remaining, eta_rate, now=now),
         "raw": {
             "done": done,
             "total": total,
