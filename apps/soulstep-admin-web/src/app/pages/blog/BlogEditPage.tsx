@@ -12,11 +12,6 @@ import type { ArticleSection, BlogFAQItem, LinkPreviewResult } from "@/lib/api/t
 
 const URL_RE = /https?:\/\/[^\s"'<>()]+/g;
 
-function extractFirstUrl(text: string): string | null {
-  const matches = text.match(URL_RE);
-  return matches?.[0] ?? null;
-}
-
 function extractAllUrls(sections: ArticleSection[]): string[] {
   const seen = new Set<string>();
   const urls: string[] = [];

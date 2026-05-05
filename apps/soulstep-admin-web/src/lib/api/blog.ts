@@ -1,7 +1,6 @@
 import { apiClient } from "./client";
 import type {
   AdminBlogListResponse,
-  AdminBlogPost,
   AdminBlogPostDetail,
   CreateBlogPostBody,
   LinkPreviewResult,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, MousePointerClick, FileText, Globe } from "lucide-react";
+import { Plus, Eye, MousePointerClick } from "lucide-react";
 import { listAdminBlogPosts, deleteBlogPost } from "@/lib/api/blog";
 import type { AdminBlogPost } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -222,12 +222,12 @@ export function BlogListPage() {
         </select>
       </div>
 
-      <DataTable
+      <DataTable<AdminBlogPost>
         columns={columns}
         data={data?.items ?? []}
         loading={loading}
         onRowClick={(p) => navigate(`/blog/${p.post_code}/edit`)}
-        keyExtractor={(p) => p.post_code}
+        rowKey={(p) => p.post_code}
         emptyMessage="No blog posts found"
       />
 
