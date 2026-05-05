@@ -25,7 +25,10 @@ function extractUrls(content: BlogPostDetail['content']): string[] {
   for (const section of content) {
     for (const para of section.paragraphs ?? []) {
       for (const m of para.matchAll(new RegExp(URL_RE.source, 'g'))) {
-        if (!seen.has(m[0])) { seen.add(m[0]); urls.push(m[0]); }
+        if (!seen.has(m[0])) {
+          seen.add(m[0]);
+          urls.push(m[0]);
+        }
       }
     }
   }
@@ -33,7 +36,11 @@ function extractUrls(content: BlogPostDetail['content']): string[] {
 }
 
 function hostname(url: string): string {
-  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
 }
 
 /** Render a paragraph with clickable URL spans. */
@@ -69,7 +76,7 @@ function RichParagraph({
           </a>
         ) : (
           <span key={i}>{part.value}</span>
-        )
+        ),
       )}
     </p>
   );
@@ -77,13 +84,7 @@ function RichParagraph({
 
 // ── Link preview card ─────────────────────────────────────────────────────────
 
-function LinkCard({
-  url,
-  slug,
-}: {
-  url: string;
-  slug: string;
-}) {
+function LinkCard({ url, slug }: { url: string; slug: string }) {
   const host = hostname(url);
   return (
     <a
@@ -98,7 +99,9 @@ function LinkCard({
           src={`https://www.google.com/s2/favicons?domain=${host}&sz=32`}
           alt=""
           className="w-4 h-4"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
         />
       </div>
       <div className="min-w-0 flex-1">
@@ -133,8 +136,12 @@ export default function BlogPostPage({
   const fetchRelated = useCallback((current: BlogPostDetail) => {
     getBlogPosts()
       .then((all) => {
-        const sameCat = all.filter((a) => a.slug !== current.slug && a.category === current.category);
-        const others = all.filter((a) => a.slug !== current.slug && a.category !== current.category);
+        const sameCat = all.filter(
+          (a) => a.slug !== current.slug && a.category === current.category,
+        );
+        const others = all.filter(
+          (a) => a.slug !== current.slug && a.category !== current.category,
+        );
         setRelated([...sameCat, ...others].slice(0, 2));
       })
       .catch(() => {});
@@ -152,7 +159,10 @@ export default function BlogPostPage({
     setLoading(true);
     setNotFound(false);
     getBlogPost(slug)
-      .then((p) => { setPost(p); fetchRelated(p); })
+      .then((p) => {
+        setPost(p);
+        fetchRelated(p);
+      })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [slug, initialPost, fetchRelated]);
@@ -165,9 +175,12 @@ export default function BlogPostPage({
     }
   }, [post]);
 
-  const handleLinkClick = useCallback((_url: string) => {
-    if (slug) void trackBlogLinkClick(slug);
-  }, [slug]);
+  const handleLinkClick = useCallback(
+    (_url: string) => {
+      if (slug) void trackBlogLinkClick(slug);
+    },
+    [slug],
+  );
 
   useHead(
     post
@@ -224,11 +237,16 @@ export default function BlogPostPage({
   if (notFound || !post) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold text-text-main dark:text-white mb-4">Article not found</h1>
+        <h1 className="text-2xl font-bold text-text-main dark:text-white mb-4">
+          Article not found
+        </h1>
         <p className="text-text-muted dark:text-dark-text-secondary mb-8">
           The article you are looking for does not exist or has been moved.
         </p>
-        <Link to="/blog" className="inline-flex items-center gap-2 text-primary font-semibold hover:underline">
+        <Link
+          to="/blog"
+          className="inline-flex items-center gap-2 text-primary font-semibold hover:underline"
+        >
           <span className="material-symbols-outlined text-sm">arrow_back</span>
           Back to Blog
         </Link>
@@ -255,7 +273,9 @@ export default function BlogPostPage({
       </Link>
 
       {/* Hero */}
-      <div className={`rounded-2xl overflow-hidden mb-8 ${post.cover_image_url ? '' : `bg-gradient-to-br ${post.cover_gradient} p-8 lg:p-12`}`}>
+      <div
+        className={`rounded-2xl overflow-hidden mb-8 ${post.cover_image_url ? '' : `bg-gradient-to-br ${post.cover_gradient} p-8 lg:p-12`}`}
+      >
         {post.cover_image_url ? (
           <div className="relative">
             <img
@@ -268,9 +288,16 @@ export default function BlogPostPage({
               <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm mb-3">
                 {post.category}
               </span>
-              <h1 className="text-2xl lg:text-3xl font-bold text-white leading-snug">{post.title}</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-white leading-snug">
+                {post.title}
+              </h1>
               <div className="flex items-center gap-3 mt-3 text-sm text-white/80">
-                {post.author_name && <><span className="font-medium">{post.author_name}</span><span>·</span></>}
+                {post.author_name && (
+                  <>
+                    <span className="font-medium">{post.author_name}</span>
+                    <span>·</span>
+                  </>
+                )}
                 <span>{formatDate(post.published_at)}</span>
                 <span>·</span>
                 <span>{post.reading_time} min read</span>
@@ -284,7 +311,12 @@ export default function BlogPostPage({
             </span>
             <h1 className="text-2xl lg:text-3xl font-bold text-white leading-snug">{post.title}</h1>
             <div className="flex items-center gap-3 mt-4 text-sm text-white/80">
-              {post.author_name && <><span className="font-medium">{post.author_name}</span><span>·</span></>}
+              {post.author_name && (
+                <>
+                  <span className="font-medium">{post.author_name}</span>
+                  <span>·</span>
+                </>
+              )}
               <span>{formatDate(post.published_at)}</span>
               <span>·</span>
               <span>{post.reading_time} min read</span>
@@ -385,7 +417,9 @@ export default function BlogPostPage({
       {/* Related articles */}
       {related.length > 0 && (
         <section>
-          <h2 className="text-lg font-bold text-text-main dark:text-white mb-5">Related Articles</h2>
+          <h2 className="text-lg font-bold text-text-main dark:text-white mb-5">
+            Related Articles
+          </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {related.map((rel) => (
               <Link
@@ -397,7 +431,11 @@ export default function BlogPostPage({
                   className={`h-28 relative overflow-hidden ${rel.cover_image_url ? '' : `bg-gradient-to-br ${rel.cover_gradient}`}`}
                 >
                   {rel.cover_image_url && (
-                    <img src={rel.cover_image_url} alt={rel.title} className="w-full h-full object-cover" />
+                    <img
+                      src={rel.cover_image_url}
+                      alt={rel.title}
+                      className="w-full h-full object-cover"
+                    />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   <div className="absolute bottom-2 left-3">

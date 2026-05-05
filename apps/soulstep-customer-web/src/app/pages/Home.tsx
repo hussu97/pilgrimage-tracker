@@ -159,7 +159,9 @@ export default function Home() {
   }, [coords.lat, coords.lng, user?.religions]);
 
   useEffect(() => {
-    getBlogPosts({ limit: 8 }).then(setBlogPosts).catch(() => {});
+    getBlogPosts({ limit: 8 })
+      .then(setBlogPosts)
+      .catch(() => {});
   }, []);
 
   const hasActiveQuery = !!search.trim() || !!religion || openNow || topRated;

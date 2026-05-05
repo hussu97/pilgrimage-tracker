@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from '@/lib/navigation';
 import { useHead } from '@/lib/hooks/useHead';
 import { getBlogPosts } from '@/lib/api/client';
@@ -72,15 +72,14 @@ export default function BlogListPage() {
   }, []);
 
   // Collect all unique tags from posts
-  const allTags = Array.from(
-    new Set(allPosts.flatMap((p) => p.tags ?? []))
-  ).sort();
+  const allTags = Array.from(new Set(allPosts.flatMap((p) => p.tags ?? []))).sort();
 
   // Client-side filter (search is also handled server-side for the API but
   // here we filter the cached full list so the UI responds instantly)
   const filtered = allPosts.filter((p) => {
     if (category !== 'All' && p.category !== category) return false;
-    if (activeTag && !(p.tags ?? []).some((t) => t.toLowerCase() === activeTag.toLowerCase())) return false;
+    if (activeTag && !(p.tags ?? []).some((t) => t.toLowerCase() === activeTag.toLowerCase()))
+      return false;
     if (readingTimeMax !== null) {
       if (readingTimeMax === 9999 && p.reading_time <= 10) return false;
       if (readingTimeMax !== 9999 && p.reading_time > readingTimeMax) return false;
@@ -170,7 +169,9 @@ export default function BlogListPage() {
             </span>
             <select
               value={readingTimeMax ?? ''}
-              onChange={(e) => setReadingTimeMax(e.target.value === '' ? null : Number(e.target.value))}
+              onChange={(e) =>
+                setReadingTimeMax(e.target.value === '' ? null : Number(e.target.value))
+              }
               className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface text-sm text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               {READING_TIME_FILTERS.map((f) => (
@@ -227,7 +228,9 @@ export default function BlogListPage() {
       {/* Article grid */}
       {loading ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface px-6 py-16 text-center">
@@ -255,7 +258,9 @@ export default function BlogListPage() {
               className="group flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
             >
               {/* Cover */}
-              <div className={`relative h-44 flex-shrink-0 overflow-hidden ${post.cover_image_url ? '' : `bg-gradient-to-br ${post.cover_gradient}`}`}>
+              <div
+                className={`relative h-44 flex-shrink-0 overflow-hidden ${post.cover_image_url ? '' : `bg-gradient-to-br ${post.cover_gradient}`}`}
+              >
                 {post.cover_image_url ? (
                   <img
                     src={post.cover_image_url}

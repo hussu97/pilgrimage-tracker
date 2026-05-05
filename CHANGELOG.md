@@ -15,6 +15,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - New `POST /api/v1/blog/posts/{slug}/view` and `POST /api/v1/blog/posts/{slug}/link-click` endpoints for fire-and-forget metrics tracking.
 
 ### Frontend (web)
+- Removed an unused React import from the blog listing page so the Next.js production build passes TypeScript checks.
 - **Homepage**: Added a blog carousel section below the main places grid showing the 8 most recent blog posts with a 2.3-item peek effect on mobile and a 3–4 column grid on desktop. Includes a "View all" link to `/blog`.
 - **Blog listing page**: Replaced static grid with an interactive filtering UI — keyword search, category pill filters, reading-time filter, and tag chips. Shows result count, empty state with clear-filters CTA, hover transitions, and tag badges on each card.
 - **Blog post page**: URLs embedded in article paragraphs are now rendered as clickable links. A "Links in this article" section at the bottom of every post shows styled link preview cards (favicon + domain + URL) for each detected URL. Clicking any link fires a `POST /…/link-click` tracking call. A `POST /…/view` tracking call fires on first post load.
