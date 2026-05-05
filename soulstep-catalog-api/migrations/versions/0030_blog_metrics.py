@@ -20,17 +20,32 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _column_exists(table_name: str, column_name: str) -> bool:
+    columns = sa.inspect(op.get_bind()).get_columns(table_name)
+    return any(column["name"] == column_name for column in columns)
+
+
+def _add_column_if_missing(table_name: str, column: sa.Column) -> None:
+    if not _column_exists(table_name, column.name):
+        op.add_column(table_name, column)
+
+
+def _drop_column_if_present(table_name: str, column_name: str) -> None:
+    if _column_exists(table_name, column_name):
+        op.drop_column(table_name, column_name)
+
+
 def upgrade() -> None:
-    op.add_column(
+    _add_column_if_missing(
         "blog_post",
         sa.Column("view_count", sa.Integer(), nullable=False, server_default="0"),
     )
-    op.add_column(
+    _add_column_if_missing(
         "blog_post",
         sa.Column("link_click_count", sa.Integer(), nullable=False, server_default="0"),
     )
 
 
 def downgrade() -> None:
-    op.drop_column("blog_post", "link_click_count")
-    op.drop_column("blog_post", "view_count")
+    _drop_column_if_present("blog_post", "link_click_count")
+    _drop_column_if_present("blog_post", "view_count")

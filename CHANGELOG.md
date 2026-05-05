@@ -8,6 +8,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Backend
 - Added `view_count` and `link_click_count` columns to `blog_post` table (migration 0030).
+- Made migration 0030 skip pre-existing blog metric columns so partially applied databases can rerun the migration safely.
 - New admin blog CRUD endpoints under `GET|POST /api/v1/admin/blog/posts`, `PATCH|DELETE /api/v1/admin/blog/posts/{post_code}` — paginated list with search/category/status filters, create, update, delete.
 - New `POST /api/v1/admin/blog/link-preview` endpoint: fetches Open Graph metadata (title, description, image, site_name) for a URL using httpx.
 - Updated public `GET /api/v1/blog/posts` to support `search`, `category`, `tag`, and `limit` query parameters.
@@ -27,6 +28,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 ### Tests
 - 15 new backend tests for public blog filtering and view/link-click tracking (`test_blog.py`).
 - 14 new backend tests for admin blog CRUD, search, auth guards, and metric columns (`test_admin_blog.py`).
+- Added regression coverage for idempotent blog metrics migration behavior.
 
 ---
 
