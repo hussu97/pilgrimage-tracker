@@ -31,21 +31,22 @@ Legacy Vite/PWA service workers are tombstoned at `/sw.js`, `/service-worker.js`
 
 ## Key Pages
 
-| Route                  | Description                                         |
-| ---------------------- | --------------------------------------------------- |
-| `/`                    | Redirects into the customer web experience          |
-| `/home`                | Discover — search, filter, and select sacred places |
-| `/places`              | Browse the full sacred-site catalog                 |
-| `/places/:placeCode`   | Place detail with check-in, reviews, FAQs, nearby   |
-| `/map`                 | Interactive map with filters                        |
-| `/journeys`            | My journeys list                                    |
-| `/journeys/new`        | Create a journey from selected places               |
-| `/journeys/:groupCode` | Journey detail — timeline, members, progress        |
-| `/groups/*`            | Legacy compatibility redirects to `/journeys/*`     |
-| `/explore`             | Explore cities                                      |
-| `/explore/:citySlug`   | City page with place grid                           |
-| `/profile`             | User profile and settings                           |
-| `/login`               | Login / register                                    |
+| Route                         | Description                                                  |
+| ----------------------------- | ------------------------------------------------------------ |
+| `/`                           | Redirects into the customer web experience                   |
+| `/home`                       | Discover — search, filter, and select sacred places          |
+| `/places`                     | Browse the full sacred-site catalog                          |
+| `/places/:placeCode`          | Place detail with check-in, reviews, FAQs, nearby            |
+| `/map`                        | Interactive map with filters                                 |
+| `/journeys`                   | My journeys list                                             |
+| `/journeys/new`               | Create a journey from selected places                        |
+| `/journeys/:groupCode`        | Journey detail — timeline, members, progress                 |
+| `/groups/*`                   | Legacy compatibility redirects to `/journeys/*`              |
+| `/explore`                    | Explore cities                                               |
+| `/explore/:citySlug`          | City page with searchable infinite-scrolling places          |
+| `/explore/:citySlug/:religion` | City religion page with searchable infinite-scrolling places |
+| `/profile`                    | User profile and settings                                    |
+| `/login`                      | Login / register                                             |
 
 ## SEO Proxy Routes
 

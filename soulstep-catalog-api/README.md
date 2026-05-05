@@ -62,7 +62,8 @@ Copy the root `.env.example` to `.env`. Key variables:
 | GET | `/api/v1/places/:placeCode/nearby` | Nearby places |
 | GET | `/api/v1/places/:placeCode/similar` | Similar places |
 | GET | `/api/v1/cities` | List cities with place counts |
-| GET | `/api/v1/cities/:citySlug/places` | Places in a city |
+| GET | `/api/v1/cities/:citySlug` | Places in a city; supports `page`, `page_size`, `lang`, and `q` search |
+| GET | `/api/v1/cities/:citySlug/:religion` | Places in a city filtered by religion; supports `page`, `page_size`, `lang`, and `q` search |
 
 ### Groups / Journeys
 | Method | Path | Description |

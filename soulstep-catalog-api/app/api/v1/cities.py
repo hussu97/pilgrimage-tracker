@@ -12,7 +12,8 @@ import re
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
-from sqlmodel import func, select
+from sqlalchemy import or_
+from sqlmodel import col, func, select
 
 from app.api.v1.place_serializers import serialize_place_minimal
 from app.db import content_translations as ct_db
@@ -46,6 +47,19 @@ def _derive_popularity_label(checkins_30d: int) -> str | None:
     if checkins_30d > 5:
         return "Growing"
     return None
+
+
+def _place_search_filter(query: str | None):
+    term = (query or "").strip()
+    if not term:
+        return None
+    like = f"%{term}%"
+    return or_(
+        col(Place.name).ilike(like),
+        col(Place.address).ilike(like),
+        col(Place.religion).ilike(like),
+        col(Place.place_type).ilike(like),
+    )
 
 
 @router.get("")
@@ -274,8 +288,9 @@ def list_places_in_city(
     city_slug: str,
     session: SessionDep,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, le=200),
+    page_size: int = Query(50, ge=1, le=200),
     lang: str | None = Query(None),
+    q: str | None = Query(None, description="Search places by name, address, type, or religion"),
 ):
     """List places in a city (matched by slug)."""
     city_slug = city_slug.lower()
@@ -286,12 +301,15 @@ def list_places_in_city(
 
     if canonical_city:
         offset_val = (page - 1) * page_size
-        total = session.exec(
-            select(func.count(Place.id)).where(Place.city_code == canonical_city.city_code)
-        ).one()
+        filters = [Place.city_code == canonical_city.city_code]
+        search_filter = _place_search_filter(q)
+        if search_filter is not None:
+            filters.append(search_filter)
+        total = session.exec(select(func.count(Place.id)).where(*filters)).one()
         places = session.exec(
             select(Place)
-            .where(Place.city_code == canonical_city.city_code)
+            .where(*filters)
+            .order_by(Place.name.asc())
             .offset(offset_val)
             .limit(page_size)
         ).all()
@@ -305,9 +323,17 @@ def list_places_in_city(
         if not matching_city:
             raise HTTPException(status_code=404, detail="City not found")
         offset_val = (page - 1) * page_size
-        total = session.exec(select(func.count(Place.id)).where(Place.city == matching_city)).one()
+        filters = [Place.city == matching_city]
+        search_filter = _place_search_filter(q)
+        if search_filter is not None:
+            filters.append(search_filter)
+        total = session.exec(select(func.count(Place.id)).where(*filters)).one()
         places = session.exec(
-            select(Place).where(Place.city == matching_city).offset(offset_val).limit(page_size)
+            select(Place)
+            .where(*filters)
+            .order_by(Place.name.asc())
+            .offset(offset_val)
+            .limit(page_size)
         ).all()
         city_name = matching_city
 
@@ -356,6 +382,7 @@ def list_places_in_city_by_religion(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     lang: str | None = Query(None),
+    q: str | None = Query(None, description="Search places by name, address, type, or religion"),
 ):
     """List places in a city filtered by religion."""
     city_slug = city_slug.lower()
@@ -365,14 +392,15 @@ def list_places_in_city_by_religion(
 
     if canonical_city:
         offset_val = (page - 1) * page_size
-        total = session.exec(
-            select(func.count(Place.id)).where(
-                Place.city_code == canonical_city.city_code, Place.religion == religion
-            )
-        ).one()
+        filters = [Place.city_code == canonical_city.city_code, Place.religion == religion]
+        search_filter = _place_search_filter(q)
+        if search_filter is not None:
+            filters.append(search_filter)
+        total = session.exec(select(func.count(Place.id)).where(*filters)).one()
         places = session.exec(
             select(Place)
-            .where(Place.city_code == canonical_city.city_code, Place.religion == religion)
+            .where(*filters)
+            .order_by(Place.name.asc())
             .offset(offset_val)
             .limit(page_size)
         ).all()
@@ -385,14 +413,15 @@ def list_places_in_city_by_religion(
         if not matching_city:
             raise HTTPException(status_code=404, detail="City not found")
         offset_val = (page - 1) * page_size
-        total = session.exec(
-            select(func.count(Place.id)).where(
-                Place.city == matching_city, Place.religion == religion
-            )
-        ).one()
+        filters = [Place.city == matching_city, Place.religion == religion]
+        search_filter = _place_search_filter(q)
+        if search_filter is not None:
+            filters.append(search_filter)
+        total = session.exec(select(func.count(Place.id)).where(*filters)).one()
         places = session.exec(
             select(Place)
-            .where(Place.city == matching_city, Place.religion == religion)
+            .where(*filters)
+            .order_by(Place.name.asc())
             .offset(offset_val)
             .limit(page_size)
         ).all()

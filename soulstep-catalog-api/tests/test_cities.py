@@ -113,6 +113,40 @@ class TestCityPlaces:
         data = resp.json()
         assert len(data["items"]) >= 1
 
+    def test_city_places_search_filters_name_and_address(self, client):
+        _create_place(
+            client,
+            "plc_citysearch001",
+            "Dubai",
+            name="Blue Creek Mosque",
+            address="Creek Road",
+        )
+        _create_place(
+            client,
+            "plc_citysearch002",
+            "Dubai",
+            name="Garden Temple",
+            address="Palm Street",
+        )
+        _create_place(
+            client,
+            "plc_citysearch003",
+            "Dubai",
+            name="Museum Chapel",
+            address="Blue Quarter",
+            religion="christianity",
+        )
+
+        resp = client.get(f"{CITIES_URL}/dubai?q=blue")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 2
+        assert {p["place_code"] for p in data["items"]} == {
+            "plc_citysearch001",
+            "plc_citysearch003",
+        }
+
 
 class TestCityReligionPlaces:
     """GET /api/v1/cities/{city_slug}/{religion}"""
@@ -140,6 +174,24 @@ class TestCityReligionPlaces:
         assert "city" in data
         assert "religion" in data
         assert data["religion"] == "christianity"
+
+    def test_city_religion_places_search_filters_within_religion(self, client):
+        _create_place(client, "plc_relsearch001", "Dubai", "islam", name="Creek Mosque")
+        _create_place(client, "plc_relsearch002", "Dubai", "islam", name="Garden Mosque")
+        _create_place(
+            client,
+            "plc_relsearch003",
+            "Dubai",
+            "christianity",
+            name="Creek Chapel",
+        )
+
+        resp = client.get(f"{CITIES_URL}/dubai/islam?q=creek")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 1
+        assert data["items"][0]["place_code"] == "plc_relsearch001"
 
 
 # ── city popularity metrics ────────────────────────────────────────────────────

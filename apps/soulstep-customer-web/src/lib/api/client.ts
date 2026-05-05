@@ -863,8 +863,24 @@ export async function getCities(params?: {
   return res.json();
 }
 
-export async function getCityPlaces(citySlug: string, page = 1): Promise<any> {
+export interface CityPlacesResponse {
+  items: Place[];
+  total: number;
+  page: number;
+  page_size: number;
+  city: string;
+  city_slug: string;
+  religion?: string;
+}
+
+export async function getCityPlaces(
+  citySlug: string,
+  page = 1,
+  params?: { page_size?: number; q?: string },
+): Promise<CityPlacesResponse> {
   const sp = new URLSearchParams({ page: String(page) });
+  if (params?.page_size != null) sp.set('page_size', String(params.page_size));
+  if (params?.q) sp.set('q', params.q);
   if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const res = await fetch(`${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}?${sp}`, {
     headers: clientHeaders(),
@@ -877,8 +893,11 @@ export async function getCityReligionPlaces(
   citySlug: string,
   religion: string,
   page = 1,
-): Promise<any> {
+  params?: { page_size?: number; q?: string },
+): Promise<CityPlacesResponse> {
   const sp = new URLSearchParams({ page: String(page) });
+  if (params?.page_size != null) sp.set('page_size', String(params.page_size));
+  if (params?.q) sp.set('q', params.q);
   if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const res = await fetch(
     `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}/${encodeURIComponent(religion)}?${sp}`,

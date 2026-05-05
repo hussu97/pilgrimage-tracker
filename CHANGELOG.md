@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-05] — City place listing search + infinite scroll
+
+### Backend
+- Updated `GET /api/v1/cities/{city_slug}` and `GET /api/v1/cities/{city_slug}/{religion}` to accept `q` for place search across name, address, religion, and place type while preserving pagination.
+
+### Frontend (web)
+- Added search to `/explore/:citySlug` and `/explore/:citySlug/:religion` city listing pages.
+- Replaced manual city place pagination with IntersectionObserver infinite scroll on desktop and mobile web.
+
+### Tests
+- Added backend coverage for city place search and city/religion place search.
+- Added customer-web API client coverage for city place search query parameters.
+
+---
+
 ## [2026-05-05] — Admin blog management + blog improvements
 
 ### Backend

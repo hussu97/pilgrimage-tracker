@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { refreshToken, logoutServer, updateGroup, setClientToken } from '@/lib/api/client';
+import {
+  getCityPlaces,
+  getCityReligionPlaces,
+  logoutServer,
+  refreshToken,
+  setClientToken,
+  updateGroup,
+} from '@/lib/api/client';
 
 function mockResponse(data: unknown, status = 200): Response {
   return {
@@ -119,5 +126,36 @@ describe('updateGroup()', () => {
     vi.mocked(fetch).mockResolvedValueOnce(mockResponse({}, 500));
 
     await expect(updateGroup(groupCode, {})).rejects.toThrow('Failed to update group');
+  });
+});
+
+// ─── city place listing ───────────────────────────────────────────────────────
+
+describe('city place listing API', () => {
+  it('passes page size and search query to city places endpoint', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockResponse({ items: [], total: 0, page: 2, page_size: 30, city: 'Dubai' }),
+    );
+
+    await getCityPlaces('dubai', 2, { page_size: 30, q: 'blue mosque' });
+
+    const url = String(vi.mocked(fetch).mock.calls[0][0]);
+    expect(url).toContain('/api/v1/cities/dubai?');
+    expect(url).toContain('page=2');
+    expect(url).toContain('page_size=30');
+    expect(url).toContain('q=blue+mosque');
+  });
+
+  it('passes page size and search query to city religion endpoint', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockResponse({ items: [], total: 0, page: 1, page_size: 30, city: 'Dubai' }),
+    );
+
+    await getCityReligionPlaces('dubai', 'islam', 1, { page_size: 30, q: 'creek' });
+
+    const url = String(vi.mocked(fetch).mock.calls[0][0]);
+    expect(url).toContain('/api/v1/cities/dubai/islam?');
+    expect(url).toContain('page_size=30');
+    expect(url).toContain('q=creek');
   });
 });
