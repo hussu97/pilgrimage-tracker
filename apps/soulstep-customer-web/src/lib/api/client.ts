@@ -972,14 +972,29 @@ export async function getHomepage(params?: GetHomepageParams): Promise<HomepageD
 
 import type { BlogPostSummary, BlogPostDetail } from '@/lib/types/blog';
 
-export async function getBlogPosts(): Promise<BlogPostSummary[]> {
-  const cacheKey = 'blog:posts';
-  const cached = getCached<BlogPostSummary[]>(cacheKey, 5 * 60_000); // 5 min TTL
-  if (cached) return cached;
-  const res = await fetch(`${API_BASE}/api/v1/blog/posts`, { headers: clientHeaders() });
+export async function getBlogPosts(params?: {
+  search?: string;
+  category?: string;
+  tag?: string;
+  limit?: number;
+}): Promise<BlogPostSummary[]> {
+  const qs = new URLSearchParams();
+  if (params?.search) qs.set('search', params.search);
+  if (params?.category) qs.set('category', params.category);
+  if (params?.tag) qs.set('tag', params.tag);
+  if (params?.limit) qs.set('limit', String(params.limit));
+  const query = qs.toString();
+  // Only cache the unfiltered list
+  const cacheKey = query ? null : 'blog:posts';
+  if (cacheKey) {
+    const cached = getCached<BlogPostSummary[]>(cacheKey, 5 * 60_000);
+    if (cached) return cached;
+  }
+  const url = `${API_BASE}/api/v1/blog/posts${query ? `?${query}` : ''}`;
+  const res = await fetch(url, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch blog posts');
   const data = await res.json();
-  setCache(cacheKey, data);
+  if (cacheKey) setCache(cacheKey, data);
   return data;
 }
 
@@ -992,4 +1007,26 @@ export async function getBlogPost(slug: string): Promise<BlogPostDetail> {
   const data = await res.json();
   setCache(cacheKey, data);
   return data;
+}
+
+export async function trackBlogView(slug: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/v1/blog/posts/${slug}/view`, {
+      method: 'POST',
+      headers: clientHeaders(),
+    });
+  } catch {
+    // fire and forget — never throw
+  }
+}
+
+export async function trackBlogLinkClick(slug: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/v1/blog/posts/${slug}/link-click`, {
+      method: 'POST',
+      headers: clientHeaders(),
+    });
+  } catch {
+    // fire and forget — never throw
+  }
 }

@@ -853,6 +853,88 @@ export interface BulkUpsertResult {
   errors: string[];
 }
 
+// ── Blog Management ───────────────────────────────────────────────────────────
+
+export interface ArticleSection {
+  heading?: string;
+  paragraphs: string[];
+}
+
+export interface BlogFAQItem {
+  question: string;
+  answer: string;
+}
+
+export interface AdminBlogPost {
+  post_code: string;
+  slug: string;
+  title: string;
+  description: string;
+  published_at: string;
+  updated_at: string;
+  reading_time: number;
+  category: string;
+  cover_gradient: string;
+  cover_image_url: string | null;
+  author_name: string | null;
+  tags: string[];
+  is_published: boolean;
+  word_count: number;
+  view_count: number;
+  link_click_count: number;
+}
+
+export interface AdminBlogPostDetail extends AdminBlogPost {
+  content: ArticleSection[];
+  faq_json: BlogFAQItem[] | null;
+}
+
+export interface AdminBlogListResponse {
+  items: AdminBlogPost[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateBlogPostBody {
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  reading_time?: number;
+  cover_gradient?: string;
+  cover_image_url?: string;
+  author_name?: string;
+  tags?: string[];
+  content?: ArticleSection[];
+  faq_json?: BlogFAQItem[];
+  is_published?: boolean;
+  published_at?: string;
+}
+
+export interface PatchBlogPostBody {
+  slug?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  reading_time?: number;
+  cover_gradient?: string;
+  cover_image_url?: string;
+  author_name?: string;
+  tags?: string[];
+  content?: ArticleSection[];
+  faq_json?: BlogFAQItem[];
+  is_published?: boolean;
+}
+
+export interface LinkPreviewResult {
+  url: string;
+  title: string;
+  description: string;
+  image: string;
+  site_name: string;
+}
+
 // ── Map types ────────────────────────────────────────────────────────────────
 
 export interface MapCellItem {

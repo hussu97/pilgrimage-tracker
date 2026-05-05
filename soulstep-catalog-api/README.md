@@ -117,9 +117,23 @@ Copy the root `.env.example` to `.env`. Key variables:
 | GET | `/robots.txt` | Robots rules |
 | GET | `/llms.txt` | AI crawler guidance |
 
+### Blog
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/blog/posts` | List published posts (supports `search`, `category`, `tag`, `limit`) |
+| GET | `/api/v1/blog/posts/:slug` | Full post detail with content |
+| POST | `/api/v1/blog/posts/:slug/view` | Increment view counter (fire-and-forget) |
+| POST | `/api/v1/blog/posts/:slug/link-click` | Increment link-click counter (fire-and-forget) |
+
 ### Admin
 | Method | Path | Description |
 |---|---|---|
+| GET | `/api/v1/admin/blog/posts` | List all posts incl. drafts (paginated, search/category/status filter) |
+| GET | `/api/v1/admin/blog/posts/:postCode` | Get full post detail |
+| POST | `/api/v1/admin/blog/posts` | Create blog post |
+| PATCH | `/api/v1/admin/blog/posts/:postCode` | Update blog post |
+| DELETE | `/api/v1/admin/blog/posts/:postCode` | Delete blog post |
+| POST | `/api/v1/admin/blog/link-preview` | Fetch OG metadata for a URL |
 | GET | `/api/v1/admin/places` | List/search places |
 | POST | `/api/v1/admin/places` | Create place |
 | PATCH | `/api/v1/admin/places/:placeCode` | Update place |

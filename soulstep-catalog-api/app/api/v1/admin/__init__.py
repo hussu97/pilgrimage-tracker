@@ -24,6 +24,7 @@ from app.api.v1.admin import (  # noqa: E402
     ads,
     analytics,
     audit_log,
+    blog,
     bulk,
     bulk_translations,
     check_ins,
@@ -65,6 +66,7 @@ admin_router.include_router(ads.router, tags=["admin-ads"])
 admin_router.include_router(health.router, tags=["admin-health"])
 admin_router.include_router(analytics.router, tags=["admin-analytics"])
 admin_router.include_router(sync_places.router, tags=["admin-sync-places"])
+admin_router.include_router(blog.router, tags=["admin-blog"])
 admin_router.include_router(
     city_aliases.router, prefix="/city-aliases", tags=["Admin - City Aliases"]
 )

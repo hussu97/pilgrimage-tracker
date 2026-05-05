@@ -32,6 +32,8 @@ import { SEODashboardPage } from "./pages/seo/SEODashboardPage";
 import { SEOPlaceDetailPage } from "./pages/seo/SEOPlaceDetailPage";
 import { SEOTemplatesPage } from "./pages/seo/SEOTemplatesPage";
 import { AnalyticsDashboardPage } from "./pages/analytics/AnalyticsDashboardPage";
+import { BlogListPage } from "./pages/blog/BlogListPage";
+import { BlogEditPage } from "./pages/blog/BlogEditPage";
 
 function AdminSplash() {
   return (
@@ -169,6 +171,10 @@ export const routes = [
               { path: "/seo", element: <SEODashboardPage /> },
               { path: "/seo/templates", element: <SEOTemplatesPage /> },
               { path: "/seo/:placeCode", element: <SEOPlaceDetailPage /> },
+              // Blog
+              { path: "/blog", element: <BlogListPage /> },
+              { path: "/blog/new", element: <BlogEditPage /> },
+              { path: "/blog/:postCode/edit", element: <BlogEditPage /> },
               // Analytics
               { path: "/analytics", element: <AnalyticsDashboardPage /> },
               // Audit Log & Notifications (Phase 6)
