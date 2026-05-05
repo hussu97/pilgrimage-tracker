@@ -20,6 +20,7 @@ import {
   BarChart3,
   Globe,
   Zap,
+  BookOpen,
 } from "lucide-react";
 
 const NAV_ITEMS: { label: string; to: string; icon: React.ElementType; end?: boolean }[] = [
@@ -32,6 +33,7 @@ const NAV_ITEMS: { label: string; to: string; icon: React.ElementType; end?: boo
   { label: "Scraper", to: "/scraper", icon: Database },
   { label: "Coverage Map", to: "/coverage-map", icon: Globe },
   { label: "Quality", to: "/quality", icon: BarChart3 },
+  { label: "Blog", to: "/blog", icon: BookOpen },
   { label: "UI Translations", to: "/translations", icon: Languages, end: true },
   { label: "Content Translations", to: "/content-translations", icon: Globe },
   { label: "Bulk Translations", to: "/translations/bulk", icon: Zap },

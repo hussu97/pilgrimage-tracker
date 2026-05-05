@@ -25,6 +25,9 @@ App runs at http://localhost:5174
 | Route | Description |
 |---|---|
 | `/` | Dashboard — summary stats |
+| `/blog` | Blog posts — list with view/click metrics |
+| `/blog/new` | Create blog post — section editor, link previews, FAQ |
+| `/blog/:postCode/edit` | Edit blog post |
 | `/places` | Places table — search, filter, paginate |
 | `/places/:placeCode` | Place detail — edit, images, SEO fields |
 | `/places/new` | Create place |

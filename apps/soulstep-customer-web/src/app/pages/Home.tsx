@@ -7,12 +7,13 @@ import { useAuth, useFeedback, useI18n } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { useHead } from '@/lib/hooks/useHead';
-import { getHomepage, getPlaces } from '@/lib/api/client';
+import { getHomepage, getPlaces, getBlogPosts } from '@/lib/api/client';
 import type {
   HomepageData,
   HomepagePopularPlace,
   HomepageRecommendedPlace,
 } from '@/lib/api/client';
+import type { BlogPostSummary } from '@/lib/types/blog';
 import type { Place, Religion } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import PlaceImage from '@/components/places/PlaceImage';
@@ -132,6 +133,7 @@ export default function Home() {
 
   const [homeData, setHomeData] = useState<HomepageData | null>(null);
   const [homeLoading, setHomeLoading] = useState(true);
+  const [blogPosts, setBlogPosts] = useState<BlogPostSummary[]>([]);
   const [search, setSearch] = useState('');
   const [religion, setReligion] = useState<Religion | ''>('');
   const [openNow, setOpenNow] = useState(false);
@@ -155,6 +157,10 @@ export default function Home() {
       .catch(() => setHomeData(null))
       .finally(() => setHomeLoading(false));
   }, [coords.lat, coords.lng, user?.religions]);
+
+  useEffect(() => {
+    getBlogPosts({ limit: 8 }).then(setBlogPosts).catch(() => {});
+  }, []);
 
   const hasActiveQuery = !!search.trim() || !!religion || openNow || topRated;
 
@@ -512,6 +518,71 @@ export default function Home() {
               )}
             </aside>
           </div>
+
+          {/* Blog carousel */}
+          {blogPosts.length > 0 && (
+            <section className="mt-10 lg:mt-12">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                    From the blog
+                  </p>
+                  <h2 className="mt-1 text-xl font-bold text-text-dark dark:text-white lg:text-2xl">
+                    Spiritual Travel Guides
+                  </h2>
+                </div>
+                <Link
+                  to="/blog"
+                  className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                >
+                  View all
+                  <span className="material-icons text-[16px]">arrow_forward</span>
+                </Link>
+              </div>
+
+              {/* Carousel: 2.3 peek on mobile, grid on desktop */}
+              <div className="flex flex-nowrap overflow-x-auto gap-4 pb-2 -mx-4 px-4 lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:mx-0 lg:px-0 lg:overflow-visible">
+                {blogPosts.slice(0, 8).map((post) => (
+                  <Link
+                    key={post.slug}
+                    to={`/blog/${post.slug}`}
+                    className="group w-[calc((100vw-2.5rem)/2.3)] flex-shrink-0 flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 lg:w-auto"
+                  >
+                    <div
+                      className={`h-36 flex-shrink-0 relative overflow-hidden ${
+                        post.cover_image_url ? '' : `bg-gradient-to-br ${post.cover_gradient}`
+                      }`}
+                    >
+                      {post.cover_image_url ? (
+                        <img
+                          src={post.cover_image_url}
+                          alt={post.title}
+                          className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+                        />
+                      ) : null}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                      <div className="absolute bottom-2 left-3">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
+                          {post.category}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-3 flex flex-col flex-1 gap-1.5">
+                      <p className="text-sm font-bold text-text-main dark:text-white leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                        {post.title}
+                      </p>
+                      <p className="text-xs text-text-muted dark:text-dark-text-secondary line-clamp-2 flex-1">
+                        {post.description}
+                      </p>
+                      <p className="text-[10px] text-text-muted dark:text-dark-text-secondary">
+                        {post.reading_time} min read
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
 

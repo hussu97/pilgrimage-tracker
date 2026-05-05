@@ -4,6 +4,32 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-05] — Admin blog management + blog improvements
+
+### Backend
+- Added `view_count` and `link_click_count` columns to `blog_post` table (migration 0030).
+- New admin blog CRUD endpoints under `GET|POST /api/v1/admin/blog/posts`, `PATCH|DELETE /api/v1/admin/blog/posts/{post_code}` — paginated list with search/category/status filters, create, update, delete.
+- New `POST /api/v1/admin/blog/link-preview` endpoint: fetches Open Graph metadata (title, description, image, site_name) for a URL using httpx.
+- Updated public `GET /api/v1/blog/posts` to support `search`, `category`, `tag`, and `limit` query parameters.
+- New `POST /api/v1/blog/posts/{slug}/view` and `POST /api/v1/blog/posts/{slug}/link-click` endpoints for fire-and-forget metrics tracking.
+
+### Frontend (web)
+- **Homepage**: Added a blog carousel section below the main places grid showing the 8 most recent blog posts with a 2.3-item peek effect on mobile and a 3–4 column grid on desktop. Includes a "View all" link to `/blog`.
+- **Blog listing page**: Replaced static grid with an interactive filtering UI — keyword search, category pill filters, reading-time filter, and tag chips. Shows result count, empty state with clear-filters CTA, hover transitions, and tag badges on each card.
+- **Blog post page**: URLs embedded in article paragraphs are now rendered as clickable links. A "Links in this article" section at the bottom of every post shows styled link preview cards (favicon + domain + URL) for each detected URL. Clicking any link fires a `POST /…/link-click` tracking call. A `POST /…/view` tracking call fires on first post load.
+- Updated `getBlogPosts()` API client function to accept `search`, `category`, `tag`, and `limit` filters.
+
+### Frontend (admin)
+- New **Blog** section in the admin sidebar (BookOpen icon).
+- **Blog list page** (`/blog`): paginated table of all posts (published and drafts) with columns for title/slug, category, published status, view count, link-click count, reading time, and publish date. Filter by search, category, and publish status. Metric stat cards show totals at a glance.
+- **Blog create/edit page** (`/blog/new`, `/blog/:postCode/edit`): full-featured form with cover gradient preview, section editor (add/remove/reorder sections and paragraphs), tag input, category and reading-time fields, FAQ editor, published/draft toggle, and live link-preview detection — when a URL is typed into any paragraph, the admin preview card appears automatically via the `/admin/blog/link-preview` endpoint.
+
+### Tests
+- 15 new backend tests for public blog filtering and view/link-click tracking (`test_blog.py`).
+- 14 new backend tests for admin blog CRUD, search, auth guards, and metric columns (`test_admin_blog.py`).
+
+---
+
 ## [2026-05-02] — Faster local handoff enrichment
 
 ### Backend

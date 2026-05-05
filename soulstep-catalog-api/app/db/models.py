@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Index, LargeBinary, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Index, Integer, LargeBinary, UniqueConstraint
 from sqlalchemy import types as sa_types
 from sqlmodel import JSON, Column, Field, SQLModel
 
@@ -731,3 +731,5 @@ class BlogPost(SQLModel, table=True):
     tags: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     faq_json: list[Any] | None = Field(default=None, sa_column=Column(JSON))
     cover_image_url: str | None = Field(default=None)
+    view_count: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    link_click_count: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
