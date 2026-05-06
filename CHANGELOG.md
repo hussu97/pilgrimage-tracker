@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-06] — Safer local handoff browser defaults
+
+### Backend
+- Reduced the default local handoff browser profile for `start-local-bg` / `resume-bg` from discovery/browser pool/browser concurrency `9` back to `7` while keeping detail concurrency `30`, image concurrency `40`, max place photos `3`, and review images `0`.
+
+### Docs
+- Updated `soulstep-scraper-api/README.md` so the documented local handoff defaults match the reduced browser concurrency profile.
+
+---
+
 ## [2026-05-05] — City place listing search + infinite scroll
 
 ### Backend
