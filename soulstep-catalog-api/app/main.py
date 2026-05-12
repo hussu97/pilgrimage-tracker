@@ -23,10 +23,13 @@ from app.core import config as _config  # noqa: E402
 if _config.SENTRY_DSN:
     import sentry_sdk  # noqa: E402
 
+    from app.core.sentry_filters import before_send  # noqa: E402
+
     sentry_sdk.init(
         dsn=_config.SENTRY_DSN,
         traces_sample_rate=0.15,
         send_default_pii=False,
+        before_send=before_send,
     )
 
 from fastapi import FastAPI, Request, status  # noqa: E402

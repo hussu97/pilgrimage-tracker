@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-12] — Backend Sentry uvicorn traceback filtering
+
+### Backend
+- Added a narrow Sentry `before_send` filter for log-only `uvicorn.error` traceback events titled `Traceback (most recent call last)`, while preserving structured exception events and app-level error logs.
+
+### Tests
+- Added backend coverage for the Sentry uvicorn traceback filter.
+
+---
+
 ## [2026-05-12] — Third-party ad rejection filtering
 
 ### Frontend (web)
