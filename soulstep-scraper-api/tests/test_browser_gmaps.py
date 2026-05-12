@@ -2236,6 +2236,86 @@ class TestFlushDetailBufferReviewImages:
         assert places[0].name == "Requeued Place"
         assert run.processed_items == 1
 
+    @pytest.mark.asyncio
+    async def test_resume_cache_query_only_checks_remaining_places(self, caplog):
+        """Resume cache lookup must not reload already-fetched rows into memory."""
+        import logging
+
+        from sqlmodel import Session, select
+
+        from app.db.models import ScrapedPlace, ScraperRun
+        from app.scrapers.gmaps_shared import fetch_place_details
+
+        class Collector:
+            calls = 0
+
+            async def fetch_details_split(self, place_name, api_key, rate_limiter, detail_client):
+                self.calls += 1
+                raise AssertionError(f"unexpected fresh fetch for {place_name}")
+
+        engine = self._make_engine_and_run()
+        with Session(engine) as sess:
+            sess.add(ScraperRun(run_code="run_cache_source", location_code="loc_cache"))
+            sess.add(
+                ScrapedPlace(
+                    run_code="run_rev_img_test",
+                    place_code="gplc_ChIJalready",
+                    name="Already Done",
+                    raw_data={"payload": "already"},
+                    detail_fetch_status="success",
+                )
+            )
+            sess.add(
+                ScrapedPlace(
+                    run_code="run_cache_source",
+                    place_code="gplc_ChIJcached",
+                    name="Cached Place",
+                    raw_data=self._minimal_details("gplc_ChIJcached"),
+                    detail_fetch_status="success",
+                    lat=25.0,
+                    lng=55.0,
+                    rating=4.5,
+                    user_rating_count=10,
+                    google_place_id="ChIJcached",
+                    address="Dubai, UAE",
+                    religion="islam",
+                    place_type="mosque",
+                    business_status="OPERATIONAL",
+                )
+            )
+            sess.commit()
+
+        collector = Collector()
+        caplog.set_level(logging.INFO, logger="app.scrapers.gmaps_shared")
+
+        with Session(engine) as sess:
+            await fetch_place_details(
+                ["places/ChIJalready", "places/ChIJcached"],
+                "run_rev_img_test",
+                sess,
+                collector=collector,
+                api_key="",
+                type_map={},
+                religion_type_map={},
+                force_refresh=False,
+                stale_threshold_days=30,
+            )
+
+        with Session(engine) as sess:
+            rows = sess.exec(
+                select(ScrapedPlace).where(ScrapedPlace.run_code == "run_rev_img_test")
+            ).all()
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+
+        assert collector.calls == 0
+        assert {row.place_code for row in rows} == {"gplc_ChIJalready", "gplc_ChIJcached"}
+        assert run.detail_fetch_cached == 1
+        assert run.processed_items == 2
+        assert "Found 1 cached places, will fetch 0 fresh" in caplog.text
+        assert "will fetch -" not in caplog.text
+
 
 # ── _capture_review_images: URL collection and limit ────────────────────────
 

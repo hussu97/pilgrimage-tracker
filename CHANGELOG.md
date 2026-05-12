@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-12] — Local handoff detail-fetch memory audit
+
+### Backend
+- Fixed resumed browser handoff detail fetches so the cache lookup only scans remaining unfetched place codes instead of reloading already-fetched `ScrapedPlace.raw_data` rows into the long-lived Python process.
+- Detached large cached and flushed ORM rows after detail-fetch commits to reduce RSS growth during multi-day local handoff resumes.
+
+### Tests
+- Added regression coverage that resumed detail fetch cache logging never reports negative fresh counts and only counts remaining cached places.
+
+---
+
 ## [2026-05-06] — Safer local handoff browser defaults
 
 ### Backend
