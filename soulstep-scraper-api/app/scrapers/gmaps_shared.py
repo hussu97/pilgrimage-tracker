@@ -261,18 +261,20 @@ def _flush_failed_places_buffer(
     # scraping logs. Each stub sets enrichment_status="filtered" which is
     # already in the enrichment skip set (complete / filtered), so downstream
     # stages naturally bypass these rows.
-    for place_name, place_code, error in failed:
-        session.add(
-            ScrapedPlace(
-                run_code=run_code,
-                place_code=place_code,
-                name=place_name,
-                raw_data={},
-                detail_fetch_status="failed",
-                detail_fetch_error=error,
-                enrichment_status="filtered",
-            )
+    failed_places = [
+        ScrapedPlace(
+            run_code=run_code,
+            place_code=place_code,
+            name=place_name,
+            raw_data={},
+            detail_fetch_status="failed",
+            detail_fetch_error=error,
+            enrichment_status="filtered",
         )
+        for place_name, place_code, error in failed
+    ]
+    for place in failed_places:
+        session.add(place)
     try:
         session.commit()
     except Exception as exc:
@@ -281,6 +283,12 @@ def _flush_failed_places_buffer(
             session.rollback()
         except Exception:
             pass
+    else:
+        for obj in failed_places:
+            try:
+                session.expunge(obj)
+            except Exception:
+                pass
 
 
 def _build_flush_objects(
@@ -493,6 +501,12 @@ def _flush_detail_buffer(
             )
 
     logger.debug("Flushed %d places (%d/%d total)", len(buffer), new_count, total)
+    for scraped_place, raw_record, assets in objects:
+        for obj in (scraped_place, raw_record, *assets):
+            try:
+                session.expunge(obj)
+            except Exception:
+                pass
 
     # Compatibility path for sync callers (mainly unit tests) that exercise
     # _flush_detail_buffer directly outside the async detail-fetch pipeline.
@@ -577,12 +591,12 @@ async def fetch_place_details(
     cached_places: dict[str, ScrapedPlace] = {}
     if not force_refresh:
         logger.info("Checking for cached places (fresher than %d days)...", stale_threshold_days)
-        all_place_codes = list(name_to_code.values())
+        remaining_place_codes = [name_to_code[pn] for pn in place_ids]
         # Chunk into batches of 500 — a single IN(50K) clause causes the DB query planner
         # to abandon the index and do a full table scan, stalling country-level runs.
         _CACHE_CHUNK = 500
-        for _ci in range(0, len(all_place_codes), _CACHE_CHUNK):
-            _chunk = all_place_codes[_ci : _ci + _CACHE_CHUNK]
+        for _ci in range(0, len(remaining_place_codes), _CACHE_CHUNK):
+            _chunk = remaining_place_codes[_ci : _ci + _CACHE_CHUNK]
             for ep in session.exec(
                 select(ScrapedPlace)
                 .where(ScrapedPlace.place_code.in_(_chunk))
@@ -599,6 +613,7 @@ async def fetch_place_details(
 
     # Store cached places immediately (no API call)
     cached_count = 0
+    cached_scraped_places: list[ScrapedPlace] = []
     for place_name in place_ids:
         place_code = name_to_code[place_name]
         if place_code in cached_places and not force_refresh:
@@ -620,6 +635,7 @@ async def fetch_place_details(
                 business_status=cached_place.business_status,
             )
             session.add(scraped_place)
+            cached_scraped_places.append(scraped_place)
             cached_count += 1
 
     if cached_count:
@@ -633,9 +649,21 @@ async def fetch_place_details(
             session.add(_run)
         session.commit()
         logger.info("Stored %d cached places", cached_count)
+        for cached_place in cached_places.values():
+            try:
+                session.expunge(cached_place)
+            except Exception:
+                pass
+        for scraped_place in cached_scraped_places:
+            try:
+                session.expunge(scraped_place)
+            except Exception:
+                pass
 
+    cached_codes = set(cached_places)
+    cached_places.clear()
     to_fetch = [
-        pn for pn in place_ids if not (name_to_code[pn] in cached_places and not force_refresh)
+        pn for pn in place_ids if not (name_to_code[pn] in cached_codes and not force_refresh)
     ]
 
     if not to_fetch:

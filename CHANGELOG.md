@@ -4,6 +4,56 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-12] — Coverage artifact tracking cleanup
+
+### Tests
+- Stopped tracking generated `.coverage` databases so pre-push coverage runs do not dirty the working tree.
+
+---
+
+## [2026-05-12] — Backend Sentry uvicorn traceback filtering
+
+### Backend
+- Added a narrow Sentry `before_send` filter for log-only `uvicorn.error` traceback events titled `Traceback (most recent call last)`, while preserving structured exception events and app-level error logs.
+
+### Tests
+- Added backend coverage for the Sentry uvicorn traceback filter.
+
+---
+
+## [2026-05-12] — Third-party ad rejection filtering
+
+### Frontend (web)
+- Suppressed undefined unhandled promise rejections emitted by third-party ad scripts after ad consent is granted, preventing Google ad-quality script noise from being reported as application errors.
+- Bumped the customer web release marker so returning browsers refresh the updated app shell guard.
+
+### Tests
+- Added customer-web regression coverage for the third-party ad rejection filter.
+
+---
+
+## [2026-05-12] — Customer web DOM mutation hardening
+
+### Frontend (web)
+- Isolated AdSense-rendered nodes from React-owned markup so third-party ad DOM cleanup cannot crash route transitions with `removeChild` errors.
+- Marked the customer app shell as `notranslate` and bumped the web release marker so returning browsers refresh the hardened shell.
+
+### Tests
+- Added customer-web regression coverage for AdSense node cleanup after third-party DOM removal.
+
+---
+
+## [2026-05-12] — Local handoff detail-fetch memory audit
+
+### Backend
+- Fixed resumed browser handoff detail fetches so the cache lookup only scans remaining unfetched place codes instead of reloading already-fetched `ScrapedPlace.raw_data` rows into the long-lived Python process.
+- Detached large cached and flushed ORM rows after detail-fetch commits to reduce RSS growth during multi-day local handoff resumes.
+
+### Tests
+- Added regression coverage that resumed detail fetch cache logging never reports negative fresh counts and only counts remaining cached places.
+
+---
+
 ## [2026-05-06] — Safer local handoff browser defaults
 
 ### Backend

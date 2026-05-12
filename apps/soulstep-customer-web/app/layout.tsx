@@ -98,6 +98,17 @@ const releaseRefreshScript = `
 })();
 `;
 
+const thirdPartyRejectionGuardScript = `
+(() => {
+  window.addEventListener('unhandledrejection', (event) => {
+    if (window.__soulstepThirdPartyAdsActive === true && event.reason === undefined) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
+})();
+`;
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.soul-step.org'),
   manifest: '/manifest.webmanifest',
@@ -139,9 +150,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialI18n = await getInitialI18n();
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="google" content="notranslate" />
 
         {/* Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -161,6 +173,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         <Script id="soulstep-release-refresh" strategy="beforeInteractive">
           {releaseRefreshScript}
+        </Script>
+
+        <Script id="soulstep-third-party-rejection-guard" strategy="beforeInteractive">
+          {thirdPartyRejectionGuardScript}
         </Script>
 
         {/* Google Consent Mode v2 — default deny until user grants consent */}
