@@ -4,6 +4,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-12] — Coverage artifact tracking cleanup
+
+### Tests
+- Stopped tracking generated `.coverage` databases so pre-push coverage runs do not dirty the working tree.
+
+---
+
 ## [2026-05-12] — Backend Sentry uvicorn traceback filtering
 
 ### Backend

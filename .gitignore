@@ -38,6 +38,7 @@ Thumbs.db
 *~
 
 # Testing and coverage
+.coverage
 coverage/
 .nyc_output/
 *.lcov
