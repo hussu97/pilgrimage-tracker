@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-12] — Third-party ad rejection filtering
+
+### Frontend (web)
+- Suppressed undefined unhandled promise rejections emitted by third-party ad scripts after ad consent is granted, preventing Google ad-quality script noise from being reported as application errors.
+- Bumped the customer web release marker so returning browsers refresh the updated app shell guard.
+
+### Tests
+- Added customer-web regression coverage for the third-party ad rejection filter.
+
+---
+
 ## [2026-05-12] — Customer web DOM mutation hardening
 
 ### Frontend (web)

@@ -12,6 +12,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '@/app/providers';
 import { getCached, setCache, dedupeInflight } from '@/lib/api/cache';
+import { markThirdPartyAdsActive } from '@/lib/thirdPartyRejections';
 import { useAdConsent, type ConsentState } from './useAdConsent';
 import type { AdSlotName } from './ad-constants';
 
@@ -129,6 +130,7 @@ export function AdProvider({ children }: { children: ReactNode }) {
   // Inject AdSense script only after consent is granted
   useEffect(() => {
     if (consent.ads && config.publisherId) {
+      markThirdPartyAdsActive();
       injectAdSenseScript(config.publisherId);
       updateGoogleConsent(true);
     }

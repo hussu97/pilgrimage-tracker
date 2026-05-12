@@ -19,6 +19,6 @@ describe('desktop navigation hardening', () => {
   });
 
   it('bumps the app shell release marker for returning browsers', () => {
-    expect(APP_RELEASE).toBe('dom-mutation-hardening-2026-05-12');
+    expect(APP_RELEASE).toBe('ad-rejection-guard-2026-05-12');
   });
 });
