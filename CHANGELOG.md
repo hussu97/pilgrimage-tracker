@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-12] — Customer web DOM mutation hardening
+
+### Frontend (web)
+- Isolated AdSense-rendered nodes from React-owned markup so third-party ad DOM cleanup cannot crash route transitions with `removeChild` errors.
+- Marked the customer app shell as `notranslate` and bumped the web release marker so returning browsers refresh the hardened shell.
+
+### Tests
+- Added customer-web regression coverage for AdSense node cleanup after third-party DOM removal.
+
+---
+
 ## [2026-05-12] — Local handoff detail-fetch memory audit
 
 ### Backend

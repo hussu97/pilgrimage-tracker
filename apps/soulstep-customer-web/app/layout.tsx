@@ -139,9 +139,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const initialI18n = await getInitialI18n();
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="google" content="notranslate" />
 
         {/* Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

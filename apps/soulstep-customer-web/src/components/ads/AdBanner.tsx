@@ -26,23 +26,41 @@ interface AdBannerProps {
 export default function AdBanner({ slot, format = 'auto', className = '' }: AdBannerProps) {
   const { canShowAds, getSlotId } = useAds();
   const { t, locale } = useI18n();
-  const adRef = useRef<HTMLModElement>(null);
-  const pushed = useRef(false);
+  const adHostRef = useRef<HTMLDivElement>(null);
   const slotId = getSlotId(slot);
   const isRtl = locale === 'ar';
 
   useEffect(() => {
-    if (!canShowAds || !slotId || pushed.current) return;
-    try {
-      const adsbygoogle = (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle;
-      if (adsbygoogle) {
-        adsbygoogle.push({});
-        pushed.current = true;
-      }
-    } catch {
-      // AdSense not loaded yet — will retry on next render
+    const host = adHostRef.current;
+    if (!canShowAds || !slotId || !host) return;
+
+    host.replaceChildren();
+
+    const ins = document.createElement('ins');
+    ins.className = 'adsbygoogle';
+    ins.style.display = 'block';
+    ins.setAttribute('data-ad-client', slotId.split('/')[0] || '');
+    ins.setAttribute('data-ad-slot', slotId);
+    ins.setAttribute('data-ad-format', format);
+    ins.setAttribute('data-full-width-responsive', 'true');
+    if (process.env.NODE_ENV !== 'production') {
+      ins.setAttribute('data-adtest', 'on');
     }
-  }, [canShowAds, slotId]);
+    host.appendChild(ins);
+
+    try {
+      const w = window as unknown as { adsbygoogle?: unknown[] };
+      const adsbygoogle = (w.adsbygoogle = w.adsbygoogle || []);
+      adsbygoogle.push({});
+    } catch {
+      // AdSense is non-critical and can be blocked by browser privacy settings.
+    }
+
+    return () => {
+      ins.parentNode?.removeChild(ins);
+      host.replaceChildren();
+    };
+  }, [canShowAds, format, slotId]);
 
   if (!canShowAds || !slotId) return null;
 
@@ -55,16 +73,7 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
       <span className="absolute top-1 left-2 text-[10px] text-muted dark:text-dark-text-secondary uppercase tracking-wider z-10">
         {t('ads.label')}
       </span>
-      <ins
-        ref={adRef}
-        className="adsbygoogle"
-        style={{ display: 'block' }}
-        data-ad-client={getSlotId(slot).split('/')[0] || ''}
-        data-ad-slot={slotId}
-        data-ad-format={format}
-        data-full-width-responsive="true"
-        data-adtest={process.env.NODE_ENV !== 'production' ? 'on' : undefined}
-      />
+      <div ref={adHostRef} />
     </div>
   );
 }
