@@ -97,6 +97,13 @@ def _bundle_upload(bundle: dict) -> tuple[str, bytes]:
     return path, open(path, "rb").read()
 
 
+def test_local_handoff_browser_defaults_stay_aligned():
+    assert LOCAL_HANDOFF_DISCOVERY_CONCURRENCY == 7
+    assert LOCAL_HANDOFF_DETAIL_CONCURRENCY == 7
+    assert LOCAL_HANDOFF_BROWSER_POOL_SIZE == 7
+    assert LOCAL_HANDOFF_BROWSER_CONCURRENCY == 7
+
+
 def test_export_running_cloud_run_run_creates_exported_handoff_and_blocks_resume(
     client, db_session
 ):

@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-14] — Local handoff concurrency alignment
+
+### Backend
+- **`soulstep-scraper-api/scripts/handoff.py`** — changed the default local handoff `start-local-bg` / `resume-bg` profile so discovery, detail, browser pool, and browser navigation concurrency all use `7`, avoiding browser-session starvation from the old detail concurrency `30`.
+
+### Docs
+- Updated `soulstep-scraper-api/README.md` and `PRODUCTION.md` to document the aligned local handoff profile.
+
+### Tests
+- Added handoff CLI coverage to keep the local browser/detail concurrency defaults aligned at `7`.
+
+---
+
 ## [2026-05-12] — Coverage artifact tracking cleanup
 
 ### Tests
