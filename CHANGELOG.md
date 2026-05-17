@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-17] — Catalog DB pool pressure hardening
+
+### Backend
+- Released catalog-api DB sessions at the FastAPI path-operation boundary so completed JSON responses do not hold QueuePool connections during middleware/compression.
+- Optimized city slug resolution for `GET /api/v1/cities/{city_slug}` and `GET /api/v1/cities/{city_slug}/{religion}` to use targeted lower-name lookups before fallback scans.
+- Raised the catalog-api FastAPI minimum to `>=0.118.0` for yield-dependency scope support.
+
+### Tests
+- Added regression coverage for DB session dependency scope and punctuation-heavy city slug fallback behavior.
+
+---
+
 ## [2026-05-14] — Local handoff concurrency alignment
 
 ### Backend

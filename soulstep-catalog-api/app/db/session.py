@@ -69,9 +69,14 @@ def get_db_session():
         yield session
 
 
-# Type alias for FastAPI dependency injection
+# Type alias for FastAPI dependency injection.
+#
+# Keep the DB session scoped to the path operation function instead of the
+# whole response cycle. Public JSON endpoints often build the complete response
+# before returning; releasing the connection before middleware/compression sends
+# the body keeps hot reads from holding QueuePool slots longer than necessary.
 # Usage: def my_endpoint(session: SessionDep, ...):
-SessionDep = Annotated[Session, Depends(get_db_session)]
+SessionDep = Annotated[Session, Depends(get_db_session, scope="function")]
 
 
 def run_migrations() -> None:

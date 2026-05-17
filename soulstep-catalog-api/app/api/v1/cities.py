@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import or_
-from sqlmodel import col, func, select
+from sqlmodel import Session, col, func, select
 
 from app.api.v1.place_serializers import serialize_place_minimal
 from app.db import content_translations as ct_db
@@ -36,6 +36,52 @@ def _city_to_slug(city: str) -> str:
 def _slug_to_city_match(slug: str, city: str) -> bool:
     """Check if a slug matches a given city name."""
     return _city_to_slug(city) == slug
+
+
+def _slug_to_name_candidates(slug: str) -> set[str]:
+    """Return common city-name forms that can be matched with indexed lookups."""
+    name = re.sub(r"-+", " ", slug.lower()).strip()
+    name = re.sub(r"\s+", " ", name)
+    return {name} if name else set()
+
+
+def _find_canonical_city(session: Session, city_slug: str) -> City | None:
+    """Resolve a slug to a City row, preferring a targeted lookup over a full scan."""
+    candidates = _slug_to_name_candidates(city_slug)
+    if candidates:
+        city = session.exec(
+            select(City).where(func.lower(City.name).in_(candidates)).limit(1)
+        ).first()
+        if city and _slug_to_city_match(city_slug, city.name):
+            return city
+
+    # Fallback preserves punctuation-heavy names whose slug cannot be reversed
+    # exactly (for example "St. John's" -> "st-johns").
+    all_city_objs = session.exec(select(City)).all()
+    return next((c for c in all_city_objs if _slug_to_city_match(city_slug, c.name)), None)
+
+
+def _find_legacy_city_name(session: Session, city_slug: str) -> str | None:
+    """Resolve a slug against legacy Place.city values without a city_code."""
+    candidates = _slug_to_name_candidates(city_slug)
+    if candidates:
+        city = session.exec(
+            select(Place.city)
+            .where(
+                Place.city != None,  # noqa: E711
+                Place.city != "",
+                func.lower(Place.city).in_(candidates),
+            )
+            .distinct()
+            .limit(1)
+        ).first()
+        if city and _slug_to_city_match(city_slug, city):
+            return city
+
+    all_cities = session.exec(
+        select(Place.city).where(Place.city != None, Place.city != "").distinct()  # noqa: E711
+    ).all()
+    return next((c for c in all_cities if c and _slug_to_city_match(city_slug, c)), None)
 
 
 def _derive_popularity_label(checkins_30d: int) -> str | None:
@@ -296,8 +342,7 @@ def list_places_in_city(
     city_slug = city_slug.lower()
 
     # Try to find a canonical City row matching the slug
-    all_city_objs = session.exec(select(City)).all()
-    canonical_city = next((c for c in all_city_objs if _city_to_slug(c.name) == city_slug), None)
+    canonical_city = _find_canonical_city(session, city_slug)
 
     if canonical_city:
         offset_val = (page - 1) * page_size
@@ -316,10 +361,7 @@ def list_places_in_city(
         city_name = canonical_city.name
     else:
         # Fallback: match by raw city string
-        all_cities = session.exec(
-            select(Place.city).where(Place.city != None, Place.city != "").distinct()  # noqa: E711
-        ).all()
-        matching_city = next((c for c in all_cities if c and _city_to_slug(c) == city_slug), None)
+        matching_city = _find_legacy_city_name(session, city_slug)
         if not matching_city:
             raise HTTPException(status_code=404, detail="City not found")
         offset_val = (page - 1) * page_size
@@ -387,8 +429,7 @@ def list_places_in_city_by_religion(
     """List places in a city filtered by religion."""
     city_slug = city_slug.lower()
 
-    all_city_objs = session.exec(select(City)).all()
-    canonical_city = next((c for c in all_city_objs if _city_to_slug(c.name) == city_slug), None)
+    canonical_city = _find_canonical_city(session, city_slug)
 
     if canonical_city:
         offset_val = (page - 1) * page_size
@@ -406,10 +447,7 @@ def list_places_in_city_by_religion(
         ).all()
         city_name = canonical_city.name
     else:
-        all_cities = session.exec(
-            select(Place.city).where(Place.city != None, Place.city != "").distinct()  # noqa: E711
-        ).all()
-        matching_city = next((c for c in all_cities if c and _city_to_slug(c) == city_slug), None)
+        matching_city = _find_legacy_city_name(session, city_slug)
         if not matching_city:
             raise HTTPException(status_code=404, detail="City not found")
         offset_val = (page - 1) * page_size

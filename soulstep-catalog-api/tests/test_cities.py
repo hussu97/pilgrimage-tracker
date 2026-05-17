@@ -113,6 +113,43 @@ class TestCityPlaces:
         data = resp.json()
         assert len(data["items"]) >= 1
 
+    def test_city_slug_fallback_handles_punctuation(self, client, db_session):
+        from app.db.models import City, Country, Place
+
+        country = Country(country_code="ctr_punct_slug", name="Punctuation Land", translations={})
+        db_session.add(country)
+        db_session.flush()
+        city = City(
+            city_code="cty_st_johns",
+            name="St. John's",
+            country_code="ctr_punct_slug",
+            translations={},
+        )
+        db_session.add(city)
+        db_session.flush()
+        db_session.add(
+            Place(
+                place_code="plc_punct_slug001",
+                name="Harbor Chapel",
+                religion="christianity",
+                place_type="church",
+                lat=47.56,
+                lng=-52.71,
+                address="Water Street",
+                city="St. John's",
+                city_code="cty_st_johns",
+                country_code="ctr_punct_slug",
+            )
+        )
+        db_session.commit()
+
+        resp = client.get(f"{CITIES_URL}/st-johns")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["city"] == "St. John's"
+        assert data["total"] == 1
+
     def test_city_places_search_filters_name_and_address(self, client):
         _create_place(
             client,

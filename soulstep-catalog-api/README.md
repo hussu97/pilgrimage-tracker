@@ -12,6 +12,9 @@ cp ../.env.example .env          # edit values
 uvicorn app.main:app --port 3000 --reload
 ```
 
+`requirements.txt` requires FastAPI 0.118+ so yield-based DB sessions can be released
+before response middleware sends the body.
+
 Health check: `curl http://127.0.0.1:3000/health`
 
 ## Environment Variables
