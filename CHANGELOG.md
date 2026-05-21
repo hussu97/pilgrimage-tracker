@@ -17,6 +17,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - Generalized the customer web ad renderer to support AdSense strings and Adsterra banner/native/global script slot objects behind the existing consent gate.
 - Added missing ad placements on home, places, explore, city detail, journeys, and blog listing screens, and bumped the customer web release marker.
 - Filtered customer-web slot configs by active `ad_server` so mixed provider configs cannot render the wrong ad network.
+- Collapsed in-page ad containers when third-party scripts do not inject a visible creative, avoiding blank Adsterra/AdSense slots on no-fill decisions.
 - Allowed Adsterra `effectivecpmnetwork.com` script/frame/connect origins in the customer-web CSP for Popunder, Native Banner, and Social Bar units.
 
 ### Docs
@@ -25,6 +26,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Tests
 - Added backend coverage for Adsterra slot config pass-through and customer-web coverage for Adsterra script rendering.
+- Added customer-web regression coverage for empty ad slot collapse and filled iframe retention.
 - Added migration regression coverage for pre-existing `ad_config.ad_server` columns.
 
 ---

@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import AdBanner from '@/components/ads/AdBanner';
+import AdBanner, { AD_SLOT_COLLAPSE_TIMEOUT_MS, hasAdCreative } from '@/components/ads/AdBanner';
 import {
   filterSlotsForAdServer,
   resolveAdsenseSlotId,
@@ -52,6 +52,7 @@ function renderComponent(ui: ReactElement) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   for (const root of mountedRoots) {
     act(() => {
       root.unmount();
@@ -105,6 +106,61 @@ describe('AdBanner', () => {
     expect(scripts[1].getAttribute('src')).toBe(
       'https://www.highperformanceformat.com/adsterra-zone-key/invoke.js',
     );
+  });
+
+  it('collapses the ad slot when third-party scripts do not inject a creative', () => {
+    vi.useFakeTimers();
+    mockSlotConfig = {
+      provider: 'adsterra',
+      type: 'banner',
+      key: 'adsterra-zone-key',
+      width: 320,
+      height: 50,
+    };
+
+    const { container } = renderComponent(<AdBanner slot="home-feed" format="horizontal" />);
+
+    expect(container.querySelector('[data-ad-slot="home-feed"]')).not.toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(AD_SLOT_COLLAPSE_TIMEOUT_MS);
+    });
+
+    expect(container.querySelector('[data-ad-slot="home-feed"]')).toBeNull();
+  });
+
+  it('keeps the ad slot when a creative iframe appears before the timeout', () => {
+    vi.useFakeTimers();
+    mockSlotConfig = {
+      provider: 'adsterra',
+      type: 'banner',
+      key: 'adsterra-zone-key',
+      width: 320,
+      height: 50,
+    };
+
+    const { container } = renderComponent(<AdBanner slot="home-feed" format="horizontal" />);
+    const host = container.querySelector('[data-ad-host="home-feed"]');
+    expect(host).toBeInstanceOf(HTMLElement);
+
+    act(() => {
+      host?.appendChild(document.createElement('iframe'));
+      vi.advanceTimersByTime(AD_SLOT_COLLAPSE_TIMEOUT_MS);
+    });
+
+    expect(container.querySelector('[data-ad-slot="home-feed"]')).not.toBeNull();
+  });
+
+  it('ignores our script placeholders when detecting ad creatives', () => {
+    const host = document.createElement('div');
+    host.appendChild(document.createElement('script'));
+    host.appendChild(document.createElement('ins'));
+
+    expect(hasAdCreative(host)).toBe(false);
+
+    host.querySelector('ins')?.appendChild(document.createElement('iframe'));
+
+    expect(hasAdCreative(host)).toBe(true);
   });
 
   it('filters slot configs to the configured ad server', () => {
