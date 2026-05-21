@@ -1,5 +1,5 @@
 /**
- * Ad unit slot names and IDs.
+ * Ad unit slot names and provider-specific configs.
  *
  * Real unit IDs / network tags are fetched from the backend via
  * GET /api/v1/ads/config and merged at runtime by AdProvider.
@@ -62,3 +62,40 @@ export interface AdsterraSlotConfig {
 }
 
 export type AdSlotConfig = string | AdsenseSlotConfig | AdsterraSlotConfig;
+
+export function normalizeAdServer(value: unknown): AdProviderName {
+  return value === 'adsterra' ? 'adsterra' : 'adsense';
+}
+
+export function isAdsterraSlotConfig(
+  config: AdSlotConfig | undefined,
+): config is AdsterraSlotConfig {
+  return typeof config === 'object' && config !== null && config.provider === 'adsterra';
+}
+
+export function slotMatchesAdServer(
+  config: AdSlotConfig | undefined,
+  adServer: AdProviderName,
+): boolean {
+  if (!config) return false;
+  if (adServer === 'adsense') {
+    if (typeof config === 'string') return Boolean(config);
+    return (config.provider || 'adsense') === 'adsense';
+  }
+  return isAdsterraSlotConfig(config);
+}
+
+export function filterSlotsForAdServer(
+  slots: Partial<Record<AdSlotName, AdSlotConfig>>,
+  adServer: AdProviderName,
+): Partial<Record<AdSlotName, AdSlotConfig>> {
+  return Object.fromEntries(
+    Object.entries(slots).filter(([, config]) => slotMatchesAdServer(config, adServer)),
+  ) as Partial<Record<AdSlotName, AdSlotConfig>>;
+}
+
+export function resolveAdsenseSlotId(config: AdSlotConfig | undefined): string {
+  if (typeof config === 'string') return config;
+  if (!config || config.provider === 'adsterra') return '';
+  return config.slotId || config.slot_id || '';
+}

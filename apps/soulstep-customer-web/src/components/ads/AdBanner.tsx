@@ -13,7 +13,12 @@ import { useEffect, useRef } from 'react';
 import { useAds } from './AdProvider';
 import { useI18n } from '@/app/providers';
 import { renderAdsterraSlot } from './adsterra';
-import type { AdSlotName, AdFormat, AdSlotConfig, AdsterraSlotConfig } from './ad-constants';
+import {
+  isAdsterraSlotConfig,
+  type AdFormat,
+  type AdSlotConfig,
+  type AdSlotName,
+} from './ad-constants';
 
 interface AdBannerProps {
   /** Slot name — maps to an ad unit ID via backend config. */
@@ -38,7 +43,7 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
 
     host.replaceChildren();
 
-    if (isAdsterraSlot(slotConfig)) {
+    if (isAdsterraSlotConfig(slotConfig)) {
       renderAdsterraSlot(host, slotConfig, format);
       return () => {
         host.replaceChildren();
@@ -87,10 +92,6 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
       <div ref={adHostRef} />
     </div>
   );
-}
-
-function isAdsterraSlot(config: AdSlotConfig | undefined): config is AdsterraSlotConfig {
-  return typeof config === 'object' && config !== null && config.provider === 'adsterra';
 }
 
 function hasRenderableSlot(config: AdSlotConfig | undefined): boolean {

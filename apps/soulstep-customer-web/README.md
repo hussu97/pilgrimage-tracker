@@ -25,7 +25,7 @@ App runs at http://localhost:5173
 
 Only `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is read for Umami. `VITE_UMAMI_WEBSITE_ID` and old native-app env names are ignored by the Next.js app.
 
-Ad slots are served from catalog-api via `GET /api/v1/ads/config?platform=web`. Configure Adsterra slot objects in the backend `AD_SLOTS_JSON` env var documented in `PRODUCTION.md §11`; the web app supports visible feed/detail slots plus `global-social-bar` and `global-popunder`.
+Ad slots are served from catalog-api via `GET /api/v1/ads/config?platform=web`. Configure `ADS_SERVER=adsense|adsterra` and Adsterra slot objects in the backend `AD_SLOTS_JSON` env var documented in `PRODUCTION.md §11`; the web app only renders slots matching the active ad server and supports visible feed/detail slots plus `global-social-bar` and `global-popunder`.
 
 ## Browser Cache Cleanup
 

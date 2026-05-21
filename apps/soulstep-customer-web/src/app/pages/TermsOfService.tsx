@@ -214,11 +214,11 @@ export default function TermsOfService() {
         <h2 className="text-xl font-bold text-text-main dark:text-white mb-3">7. Advertising</h2>
         <div className="rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface p-5">
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
-            The Service displays third-party advertisements served through Google AdSense. These
-            advertisements help support the operation and development of SoulStep. The content of
-            third-party advertisements is not controlled by SoulStep, and we are not responsible for
-            the accuracy, content, or practices of advertisers or the products and services they
-            promote.
+            The Service may display third-party advertisements served through configured advertising
+            partners, including Google AdSense or Adsterra. These advertisements help support the
+            operation and development of SoulStep. The content of third-party advertisements is not
+            controlled by SoulStep, and we are not responsible for the accuracy, content, or
+            practices of advertisers or the products and services they promote.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
             You may manage your advertising preferences and opt out of personalized ads through our

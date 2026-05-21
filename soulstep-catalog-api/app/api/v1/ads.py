@@ -3,6 +3,7 @@
 import time
 from datetime import UTC, datetime
 from threading import Lock
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
@@ -17,6 +18,7 @@ router = APIRouter()
 _ad_config_cache: dict[str, tuple["AdConfigResponse", float]] = {}
 _ad_config_lock = Lock()
 _AD_CONFIG_TTL = 300.0  # 5 minutes
+AdServer = Literal["adsense", "adsterra"]
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -25,6 +27,7 @@ _AD_CONFIG_TTL = 300.0  # 5 minutes
 class AdConfigResponse(BaseModel):
     platform: str
     ads_enabled: bool
+    ad_server: AdServer
     adsense_publisher_id: str
     ad_slots: dict
 
@@ -38,6 +41,37 @@ class ConsentBody(BaseModel):
 class ConsentStatusResponse(BaseModel):
     ads: bool | None = None
     analytics: bool | None = None
+
+
+def clear_ad_config_cache(platform: str | None = None) -> None:
+    """Clear public ad config cache after admin or seed updates."""
+    with _ad_config_lock:
+        if platform is None:
+            _ad_config_cache.clear()
+        else:
+            _ad_config_cache.pop(platform, None)
+
+
+def normalize_ad_server(value: str | None) -> AdServer:
+    return "adsterra" if (value or "").strip().lower() == "adsterra" else "adsense"
+
+
+def slot_matches_ad_server(slot_config: object, ad_server: AdServer) -> bool:
+    if ad_server == "adsense":
+        if isinstance(slot_config, str):
+            return bool(slot_config)
+        if isinstance(slot_config, dict):
+            return slot_config.get("provider", "adsense") == "adsense"
+        return False
+    return isinstance(slot_config, dict) and slot_config.get("provider") == "adsterra"
+
+
+def filter_ad_slots_for_server(ad_slots: dict | None, ad_server: AdServer) -> dict:
+    return {
+        name: slot_config
+        for name, slot_config in (ad_slots or {}).items()
+        if slot_matches_ad_server(slot_config, ad_server)
+    }
 
 
 # ── Ad config ────────────────────────────────────────────────────────────────
@@ -58,11 +92,13 @@ def get_ad_config(
             return cached[0]
 
     row = session.exec(select(AdConfig).where(AdConfig.platform == platform)).first()
+    ad_server = normalize_ad_server(row.ad_server if row else None)
     result = AdConfigResponse(
         platform=platform,
         ads_enabled=row.ads_enabled if row else False,
-        adsense_publisher_id=row.adsense_publisher_id if row else "",
-        ad_slots=row.ad_slots or {} if row else {},
+        ad_server=ad_server,
+        adsense_publisher_id=row.adsense_publisher_id if row and ad_server == "adsense" else "",
+        ad_slots=filter_ad_slots_for_server(row.ad_slots if row else {}, ad_server),
     )
     with _ad_config_lock:
         _ad_config_cache[platform] = (result, now + _AD_CONFIG_TTL)

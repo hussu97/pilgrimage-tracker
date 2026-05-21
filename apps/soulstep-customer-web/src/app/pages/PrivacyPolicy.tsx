@@ -139,18 +139,18 @@ export default function PrivacyPolicy() {
             <strong className="text-text-main dark:text-white">
               Third-Party Advertising Cookies.
             </strong>{' '}
-            We use Google AdSense (publisher ID: ca-pub-7902951158656200) to display advertisements
-            on the Service. Third-party vendors, including Google, use cookies to serve ads based on
-            your prior visits to this website and other websites on the Internet. Google&apos;s use
-            of advertising cookies enables it and its partners to serve ads to you based on your
-            visit to SoulStep and/or other sites on the Internet.
+            We may use third-party advertising partners, including Google AdSense and Adsterra, to
+            display advertisements on the Service. These partners may use cookies, scripts, pixels,
+            or similar technologies to serve, measure, and improve ads based on your visits to
+            SoulStep and other websites, subject to your consent choices and their policies.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
             <strong className="text-text-main dark:text-white">
               Personalized Advertising and Opt-Out.
             </strong>{' '}
-            Google may use the data collected through these cookies to personalize the
-            advertisements shown to you. You may opt out of personalized advertising by visiting{' '}
+            Advertising partners may use data collected through these technologies to personalize
+            the advertisements shown to you. You may manage Google personalized advertising by
+            visiting{' '}
             <a
               href="https://adssettings.google.com"
               target="_blank"
@@ -172,14 +172,16 @@ export default function PrivacyPolicy() {
             .
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
-            <strong className="text-text-main dark:text-white">Google Consent Mode v2.</strong> We
-            implement Google Consent Mode v2 to respect your privacy choices. By default,
-            advertising storage and analytics storage are set to &quot;denied&quot; until you
-            provide explicit consent through our cookie consent banner. When consent is denied,
-            Google tags adjust their behavior accordingly — no advertising cookies are stored, and
-            ad personalization is disabled. If you grant consent, advertising and analytics cookies
-            will function as described above. You may withdraw your consent at any time by clearing
-            your browser cookies or using the consent controls provided on the Service.
+            <strong className="text-text-main dark:text-white">
+              Advertising Consent Controls.
+            </strong>{' '}
+            We use consent controls to respect your privacy choices. By default, advertising storage
+            and analytics storage are set to &quot;denied&quot; until you provide explicit consent
+            through our cookie consent banner. When Google tags are active, we use Google Consent
+            Mode v2 so those tags adjust their behavior accordingly. Other advertising partner tags
+            are only loaded after advertising consent is granted. You may withdraw your consent at
+            any time by clearing your browser cookies or using the consent controls provided on the
+            Service.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             <strong className="text-text-main dark:text-white">Essential Cookies.</strong> In

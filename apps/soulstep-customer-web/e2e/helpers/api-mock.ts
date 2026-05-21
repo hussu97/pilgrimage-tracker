@@ -224,6 +224,7 @@ export async function setupApiMocks(page: Page): Promise<void> {
       body: JSON.stringify({
         platform: 'web',
         ads_enabled: false,
+        ad_server: 'adsense',
         adsense_publisher_id: '',
         ad_slots: {},
       }),

@@ -9,13 +9,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 ### Backend
 - Added `AD_SLOTS_JSON` support so catalog-api can seed provider-specific web ad slot configs, including Adsterra slot objects, without requiring AdSense IDs.
 - Forwarded `AD_SLOTS_JSON` through production Docker Compose and VM environment update/deploy workflows.
+- Added an explicit `ADS_SERVER` / `ad_server` switch for `adsense` vs `adsterra`, persisted it on ad config, and filtered public ad slots to the active provider.
+- Added an Alembic migration for `ad_config.ad_server` and admin API support for switching providers.
 
 ### Frontend (web)
 - Generalized the customer web ad renderer to support AdSense strings and Adsterra banner/native/global script slot objects behind the existing consent gate.
 - Added missing ad placements on home, places, explore, city detail, journeys, and blog listing screens, and bumped the customer web release marker.
+- Filtered customer-web slot configs by active `ad_server` so mixed provider configs cannot render the wrong ad network.
 
 ### Docs
 - Documented Adsterra slot configuration in the backend env reference and customer/catalog README files.
+- Updated legal page ad language so Terms and Privacy reflect configurable ad partners instead of AdSense-only serving.
 
 ### Tests
 - Added backend coverage for Adsterra slot config pass-through and customer-web coverage for Adsterra script rendering.

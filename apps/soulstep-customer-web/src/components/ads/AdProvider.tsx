@@ -14,7 +14,15 @@ import { useAuth } from '@/app/providers';
 import { getCached, setCache, dedupeInflight } from '@/lib/api/cache';
 import { markThirdPartyAdsActive } from '@/lib/thirdPartyRejections';
 import { useAdConsent, type ConsentState } from './useAdConsent';
-import type { AdSlotConfig, AdSlotName, AdsterraSlotConfig } from './ad-constants';
+import {
+  filterSlotsForAdServer,
+  isAdsterraSlotConfig,
+  normalizeAdServer,
+  resolveAdsenseSlotId,
+  type AdProviderName,
+  type AdSlotConfig,
+  type AdSlotName,
+} from './ad-constants';
 import { injectAdsterraGlobalScript } from './adsterra';
 
 const API_BASE = '';
@@ -24,6 +32,7 @@ const ADSENSE_PUB_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID ?? '';
 
 interface AdConfig {
   adsEnabled: boolean;
+  adServer: AdProviderName;
   publisherId: string;
   adSlots: Partial<Record<AdSlotName, AdSlotConfig>>;
 }
@@ -31,6 +40,8 @@ interface AdConfig {
 interface AdContextValue {
   /** True when all conditions are met: config enabled, consent given, not premium. */
   canShowAds: boolean;
+  /** Active ad server. Only slots matching this provider are exposed. */
+  adServer: AdProviderName;
   /** Ad unit ID for a given slot name (from backend config). */
   getSlotId: (slot: AdSlotName) => string;
   /** Provider-specific slot config for a given slot name. */
@@ -74,16 +85,6 @@ function updateGoogleConsent(granted: boolean): void {
   }
 }
 
-function isAdsterraSlot(config: AdSlotConfig | undefined): config is AdsterraSlotConfig {
-  return typeof config === 'object' && config !== null && config.provider === 'adsterra';
-}
-
-function resolveAdsenseSlotId(config: AdSlotConfig | undefined): string {
-  if (typeof config === 'string') return config;
-  if (!config || config.provider === 'adsterra') return '';
-  return config.slotId || config.slot_id || '';
-}
-
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 export function AdProvider({ children }: { children: ReactNode }) {
@@ -91,6 +92,7 @@ export function AdProvider({ children }: { children: ReactNode }) {
   const { consent, setConsent, acceptAll } = useAdConsent(visitorCode, token);
   const [config, setConfig] = useState<AdConfig>({
     adsEnabled: false,
+    adServer: 'adsense',
     publisherId: ADSENSE_PUB_ID,
     adSlots: {},
   });
@@ -102,16 +104,20 @@ export function AdProvider({ children }: { children: ReactNode }) {
     const TTL = 5 * 60_000;
     type RawAdConfig = {
       ads_enabled: boolean;
+      ad_server?: AdProviderName;
       adsense_publisher_id: string;
       ad_slots: Partial<Record<AdSlotName, AdSlotConfig>>;
     };
 
-    const apply = (data: RawAdConfig) =>
+    const apply = (data: RawAdConfig) => {
+      const adServer = normalizeAdServer(data.ad_server);
       setConfig({
         adsEnabled: data.ads_enabled,
-        publisherId: data.adsense_publisher_id || ADSENSE_PUB_ID,
-        adSlots: data.ad_slots || {},
+        adServer,
+        publisherId: adServer === 'adsense' ? data.adsense_publisher_id || ADSENSE_PUB_ID : '',
+        adSlots: filterSlotsForAdServer(data.ad_slots || {}, adServer),
       });
+    };
 
     const cached = getCached<RawAdConfig>(CACHE_KEY, TTL);
     if (cached) {
@@ -149,27 +155,27 @@ export function AdProvider({ children }: { children: ReactNode }) {
 
     const globalSocialBar = config.adSlots['global-social-bar'];
     const globalPopunder = config.adSlots['global-popunder'];
-    const hasAdsenseSlot = Object.values(config.adSlots).some(
-      (slotConfig) => !isAdsterraSlot(slotConfig) && resolveAdsenseSlotId(slotConfig),
+    const hasAdsenseSlot = Object.values(config.adSlots).some((slotConfig) =>
+      resolveAdsenseSlotId(slotConfig),
     );
     const cleanup: Array<() => void> = [];
 
     markThirdPartyAdsActive();
-    if (config.publisherId && hasAdsenseSlot) {
+    if (config.adServer === 'adsense' && config.publisherId && hasAdsenseSlot) {
       injectAdSenseScript(config.publisherId);
       updateGoogleConsent(true);
     }
-    if (isAdsterraSlot(globalSocialBar)) {
+    if (config.adServer === 'adsterra' && isAdsterraSlotConfig(globalSocialBar)) {
       cleanup.push(injectAdsterraGlobalScript('adsterra-global-social-bar', globalSocialBar));
     }
-    if (isAdsterraSlot(globalPopunder)) {
+    if (config.adServer === 'adsterra' && isAdsterraSlotConfig(globalPopunder)) {
       cleanup.push(injectAdsterraGlobalScript('adsterra-global-popunder', globalPopunder));
     }
 
     return () => {
       cleanup.forEach((fn) => fn());
     };
-  }, [canShowAds, config.adSlots, config.publisherId]);
+  }, [canShowAds, config.adServer, config.adSlots, config.publisherId]);
 
   const getSlotConfig = useMemo(() => (slot: AdSlotName) => config.adSlots[slot], [config.adSlots]);
   const getSlotId = useMemo(
@@ -182,6 +188,7 @@ export function AdProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AdContextValue>(
     () => ({
       canShowAds,
+      adServer: config.adServer,
       getSlotId,
       getSlotConfig,
       consent,
@@ -192,6 +199,7 @@ export function AdProvider({ children }: { children: ReactNode }) {
     }),
     [
       canShowAds,
+      config.adServer,
       getSlotId,
       getSlotConfig,
       consent,

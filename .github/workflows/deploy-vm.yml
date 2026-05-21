@@ -231,6 +231,7 @@ jobs:
           VERIFY_URL_BASE=${{ secrets.VERIFY_URL_BASE }}
           # ── Catalog-api: ads ──────────────────────────────────────────────────
           ADS_ENABLED=${{ secrets.ADS_ENABLED }}
+          ADS_SERVER=${{ secrets.ADS_SERVER }}
           ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
           AD_SLOTS_JSON=${{ secrets.AD_SLOTS_JSON }}
           # ── Catalog-api: image storage ────────────────────────────────────────

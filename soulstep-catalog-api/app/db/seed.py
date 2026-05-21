@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sqlmodel import SQLModel, select
 
-from app.core.config import AD_SLOTS_JSON, ADS_ENABLED, ADSENSE_PUBLISHER_ID
+from app.core.config import AD_SLOTS_JSON, ADS_ENABLED, ADS_SERVER, ADSENSE_PUBLISHER_ID
 from app.core.security import hash_password
 from app.db import content_translations as ct_db
 from app.db import groups as groups_db
@@ -81,6 +81,7 @@ def _seed_ad_config() -> None:
     Safe to call repeatedly — updates existing rows rather than inserting duplicates. Adsterra
     setups should provide AD_SLOTS_JSON with per-slot objects copied from the publisher console.
     """
+    ad_server = _normalize_ad_server(ADS_SERVER)
     default_slots = _default_ad_slots(ADSENSE_PUBLISHER_ID)
     configured_slots = _parse_ad_slots_json(AD_SLOTS_JSON)
     web_slots = configured_slots if configured_slots is not None else default_slots
@@ -92,6 +93,7 @@ def _seed_ad_config() -> None:
                 AdConfig(
                     platform="web",
                     ads_enabled=ADS_ENABLED,
+                    ad_server=ad_server,
                     adsense_publisher_id=ADSENSE_PUBLISHER_ID,
                     ad_slots=web_slots,
                     updated_at=datetime.now(UTC),
@@ -99,11 +101,20 @@ def _seed_ad_config() -> None:
             )
         else:
             row.ads_enabled = ADS_ENABLED
+            row.ad_server = ad_server
             row.adsense_publisher_id = ADSENSE_PUBLISHER_ID
             if configured_slots is not None or not row.ad_slots:
                 row.ad_slots = web_slots
             row.updated_at = datetime.now(UTC)
         session.commit()
+
+
+def _normalize_ad_server(value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized in {"adsense", "adsterra"}:
+        return normalized
+    logger.warning("ADS_SERVER must be 'adsense' or 'adsterra'; falling back to 'adsense'")
+    return "adsense"
 
 
 def _default_ad_slots(publisher_id: str) -> dict[str, str]:

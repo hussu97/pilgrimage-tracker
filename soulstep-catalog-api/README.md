@@ -35,6 +35,7 @@ Copy the root `.env.example` to `.env`. Key variables:
 | `GCS_BUCKET_NAME` | GCS bucket for place images |
 | `DATA_SCRAPER_URL` | URL of the scraper-api service |
 | `ADS_ENABLED` | Master switch for web ads |
+| `ADS_SERVER` | Active web ad server: `adsense` or `adsterra` |
 | `ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID for AdSense-backed web ad slots |
 | `AD_SLOTS_JSON` | JSON object for configured web ad slots, including Adsterra slot objects |
 | `SENTRY_DSN` | Sentry/GlitchTip error tracking DSN |

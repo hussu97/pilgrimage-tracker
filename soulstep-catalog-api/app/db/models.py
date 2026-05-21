@@ -629,9 +629,9 @@ class PlaceSEOTranslation(SQLModel, table=True):
 
 
 class AdConfig(SQLModel, table=True):
-    """Server-driven feature flag and ad-unit configuration for the web app.
+    """Server-driven feature flag, provider, and ad-slot configuration for the web app.
 
-    Used by GET /api/v1/ads/config to deliver ad unit IDs and the kill-switch.
+    Used by GET /api/v1/ads/config to deliver provider-filtered slot config and the kill-switch.
     """
 
     __tablename__ = "ad_config"
@@ -642,10 +642,14 @@ class AdConfig(SQLModel, table=True):
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="0"),
     )
+    ad_server: str = Field(
+        default="adsense",
+        sa_column=Column(sa_types.String, nullable=False, server_default="adsense"),
+    )  # "adsense" | "adsterra"
     adsense_publisher_id: str = Field(default="")
     ad_slots: dict[str, Any] = Field(
         default={}, sa_column=Column(JSON)
-    )  # {"place-detail-mid": "ca-pub-.../1234", ...}
+    )  # {"place-detail-mid": "ca-pub-.../1234"} or provider-specific slot objects.
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
@@ -731,5 +735,9 @@ class BlogPost(SQLModel, table=True):
     tags: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     faq_json: list[Any] | None = Field(default=None, sa_column=Column(JSON))
     cover_image_url: str | None = Field(default=None)
-    view_count: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
-    link_click_count: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    view_count: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
+    )
+    link_click_count: int = Field(
+        default=0, sa_column=Column(Integer, nullable=False, server_default="0")
+    )

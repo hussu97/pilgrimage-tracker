@@ -74,6 +74,7 @@ DATA_SCRAPER_URL = os.environ.get("DATA_SCRAPER_URL", "http://localhost:8001")
 
 # Ads integration
 ADS_ENABLED = os.environ.get("ADS_ENABLED", "false").lower() == "true"
+ADS_SERVER = os.environ.get("ADS_SERVER", "adsense")
 ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID", "")
 AD_SLOTS_JSON = os.environ.get("AD_SLOTS_JSON", "")
 

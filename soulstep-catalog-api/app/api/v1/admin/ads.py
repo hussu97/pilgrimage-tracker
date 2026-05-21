@@ -1,6 +1,7 @@
 """Admin — Ad configuration and consent analytics."""
 
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -8,6 +9,7 @@ from sqlmodel import func, select
 
 from app.api.deps import AdminDep
 from app.api.v1.admin.audit_log import record_audit
+from app.api.v1.ads import clear_ad_config_cache
 from app.db.models import AdConfig, ConsentRecord
 from app.db.session import SessionDep
 
@@ -21,6 +23,7 @@ class AdminAdConfigItem(BaseModel):
     id: int
     platform: str
     ads_enabled: bool
+    ad_server: Literal["adsense", "adsterra"]
     adsense_publisher_id: str
     ad_slots: dict
     updated_at: datetime
@@ -32,6 +35,7 @@ class AdminAdConfigListResponse(BaseModel):
 
 class PatchAdConfigBody(BaseModel):
     ads_enabled: bool | None = None
+    ad_server: Literal["adsense", "adsterra"] | None = None
     adsense_publisher_id: str | None = None
     ad_slots: dict | None = None
 
@@ -61,6 +65,7 @@ def list_ad_configs(session: SessionDep, admin: AdminDep):
                 id=r.id,  # type: ignore[arg-type]
                 platform=r.platform,
                 ads_enabled=r.ads_enabled,
+                ad_server=r.ad_server if r.ad_server in ("adsense", "adsterra") else "adsense",
                 adsense_publisher_id=r.adsense_publisher_id,
                 ad_slots=r.ad_slots or {},
                 updated_at=r.updated_at,
@@ -86,6 +91,9 @@ def patch_ad_config(
     if body.ads_enabled is not None and body.ads_enabled != row.ads_enabled:
         changes["ads_enabled"] = {"old": row.ads_enabled, "new": body.ads_enabled}
         row.ads_enabled = body.ads_enabled
+    if body.ad_server is not None and body.ad_server != row.ad_server:
+        changes["ad_server"] = {"old": row.ad_server, "new": body.ad_server}
+        row.ad_server = body.ad_server
     if (
         body.adsense_publisher_id is not None
         and body.adsense_publisher_id != row.adsense_publisher_id
@@ -104,12 +112,14 @@ def patch_ad_config(
         session.add(row)
         session.commit()
         session.refresh(row)
+        clear_ad_config_cache(row.platform)
         record_audit(session, admin, "update", "ad_config", row.platform, changes)
 
     return AdminAdConfigItem(
         id=row.id,  # type: ignore[arg-type]
         platform=row.platform,
         ads_enabled=row.ads_enabled,
+        ad_server=row.ad_server if row.ad_server in ("adsense", "adsterra") else "adsense",
         adsense_publisher_id=row.adsense_publisher_id,
         ad_slots=row.ad_slots or {},
         updated_at=row.updated_at,

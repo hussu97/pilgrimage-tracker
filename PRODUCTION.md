@@ -115,7 +115,8 @@ Go to **GitHub → hussu97/pilgrimage-tracker → Settings → Environments → 
 | `GOOGLE_CLOUD_PROJECT` | `project-fa2d7f52-2bc4-4a46-8ae` |
 | `SENTRY_DSN` | Sentry DSN for catalog-api + scraper-api error tracking |
 | `ADS_ENABLED` | `false` |
-| `ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID (only needed when `ADS_ENABLED=true`) |
+| `ADS_SERVER` | `adsense` or `adsterra`; controls which configured ad slots are served to customer web |
+| `ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID (only needed when `ADS_SERVER=adsense` and `ADS_ENABLED=true`) |
 | `SCRAPER_GEMINI_API_KEY` | Google Gemini API key |
 | `SCRAPER_FOURSQUARE_API_KEY` | Foursquare API key |
 | `SCRAPER_ALLOWED_ORIGINS` | `https://admin.soul-step.org` |
@@ -443,6 +444,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web build-time vars g
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for place images. Required when `IMAGE_STORAGE=gcs`. |
 | `DATA_SCRAPER_URL` | — | `http://localhost:8001` | scraper-api URL for admin proxy. Docker Compose: `http://scraper-api:8080`. |
 | `ADS_ENABLED` | — | `false` | Master switch for ads. |
+| `ADS_SERVER` | — | `adsense` | Active customer-web ad server. Must be `adsense` or `adsterra`; only slots matching this provider are returned by `/api/v1/ads/config`. |
 | `ADSENSE_PUBLISHER_ID` | — | — | AdSense publisher ID. Required only for AdSense-backed slots. |
 | `AD_SLOTS_JSON` | — | — | JSON object keyed by customer-web slot name. Use Adsterra slot objects such as `{"home-feed":{"provider":"adsterra","type":"banner","key":"zone","width":320,"height":50}}`. Overrides seeded slot defaults when set. |
 | `SENTRY_DSN` | — | — | Sentry DSN for backend errors. Shared with scraper-api via Compose. |
@@ -514,7 +516,7 @@ Never put secrets in `NEXT_PUBLIC_*` vars.
 | `NEXT_PUBLIC_API_BASE_URL` | Vercel dashboard | — | Catalog API public URL. Example: `https://catalog-api.soul-step.org` |
 | `INTERNAL_API_URL` | Vercel dashboard | _(falls back to `NEXT_PUBLIC_API_BASE_URL`)_ | Server-only URL for SSR metadata fetches. Never use `NEXT_PUBLIC_` prefix. |
 | `NEXT_PUBLIC_SENTRY_DSN` | Vercel dashboard | — | Sentry DSN for client-side error tracking. |
-| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Vercel dashboard | — | Google AdSense ID. Required when backend returns `ADS_ENABLED=true`. |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Vercel dashboard | — | Google AdSense ID. Required only for AdSense verification/build metadata when using AdSense. Not used for Adsterra. |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Vercel dashboard | — | Umami analytics website ID. Must be set for tracking to work; `app/layout.tsx` only renders the `<Script>` tag when this is truthy, and the tracking hook gates every `track()` call on it being configured. The script loads from `/lib/app.js` and posts events to `/api/send`. |
 
 ---

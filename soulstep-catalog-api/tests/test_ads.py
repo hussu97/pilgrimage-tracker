@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from app.api.v1 import ads as ads_module
 from app.db.models import AdConfig, ConsentRecord, User
-from app.db.seed import _default_ad_slots, _parse_ad_slots_json
+from app.db.seed import _default_ad_slots, _normalize_ad_server, _parse_ad_slots_json
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -44,10 +44,11 @@ def _admin_headers(client, db_session, email="admin@example.com"):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _seed_ad_config(db_session, platform="web", ads_enabled=False):
+def _seed_ad_config(db_session, platform="web", ads_enabled=False, ad_server="adsense"):
     row = AdConfig(
         platform=platform,
         ads_enabled=ads_enabled,
+        ad_server=ad_server,
         adsense_publisher_id="ca-pub-test123",
         ad_slots={"place-detail-mid": "slot-111"},
         updated_at=datetime.now(UTC),
@@ -68,6 +69,7 @@ def test_get_ad_config_default_no_rows(client):
     data = resp.json()
     assert data["platform"] == "web"
     assert data["ads_enabled"] is False
+    assert data["ad_server"] == "adsense"
     assert data["ad_slots"] == {}
 
 
@@ -78,15 +80,17 @@ def test_get_ad_config_for_platform(client, db_session):
     data = resp.json()
     assert data["platform"] == "web"
     assert data["ads_enabled"] is True
+    assert data["ad_server"] == "adsense"
     assert data["adsense_publisher_id"] == "ca-pub-test123"
     assert data["ad_slots"] == {"place-detail-mid": "slot-111"}
 
 
-def test_get_ad_config_supports_adsterra_slot_objects(client, db_session):
+def test_get_ad_config_filters_slots_by_ad_server(client, db_session):
     db_session.add(
         AdConfig(
             platform="web",
             ads_enabled=True,
+            ad_server="adsterra",
             adsense_publisher_id="",
             ad_slots={
                 "home-feed": {
@@ -95,7 +99,8 @@ def test_get_ad_config_supports_adsterra_slot_objects(client, db_session):
                     "key": "adsterra-zone-key",
                     "width": 320,
                     "height": 50,
-                }
+                },
+                "place-detail-mid": "ca-pub-test/111",
             },
             updated_at=datetime.now(UTC),
         )
@@ -104,7 +109,18 @@ def test_get_ad_config_supports_adsterra_slot_objects(client, db_session):
 
     resp = client.get("/api/v1/ads/config", params={"platform": "web"})
     assert resp.status_code == 200
-    assert resp.json()["ad_slots"]["home-feed"]["provider"] == "adsterra"
+    data = resp.json()
+    assert data["ad_server"] == "adsterra"
+    assert data["adsense_publisher_id"] == ""
+    assert data["ad_slots"] == {
+        "home-feed": {
+            "provider": "adsterra",
+            "type": "banner",
+            "key": "adsterra-zone-key",
+            "width": 320,
+            "height": 50,
+        }
+    }
 
 
 def test_ad_slot_seed_helpers_parse_configurable_slots():
@@ -113,6 +129,8 @@ def test_ad_slot_seed_helpers_parse_configurable_slots():
         "home-feed": {"provider": "adsterra", "type": "banner", "key": "zone"}
     }
     assert _parse_ad_slots_json("[]") is None
+    assert _normalize_ad_server("adsterra") == "adsterra"
+    assert _normalize_ad_server("bad-value") == "adsense"
     assert _default_ad_slots("ca-pub-test")["places-feed"] == "ca-pub-test/places-feed"
 
 
@@ -244,6 +262,7 @@ def test_admin_list_ad_configs_with_data(client, db_session):
     items = resp.json()["items"]
     assert len(items) == 1
     assert items[0]["platform"] == "web"
+    assert items[0]["ad_server"] == "adsense"
 
 
 # ── Admin: PATCH /api/v1/admin/ads/config/:id ────────────────────────────────
@@ -260,7 +279,51 @@ def test_admin_patch_ad_config(client, db_session):
     assert resp.status_code == 200
     data = resp.json()
     assert data["ads_enabled"] is True
+    assert data["ad_server"] == "adsense"
     assert data["platform"] == "web"
+
+
+def test_admin_patch_ad_config_updates_ad_server_and_clears_public_cache(client, db_session):
+    row = _seed_ad_config(db_session, "web", ads_enabled=True, ad_server="adsense")
+    client.get("/api/v1/ads/config", params={"platform": "web"})
+    headers = _admin_headers(client, db_session)
+
+    resp = client.patch(
+        f"/api/v1/admin/ads/config/{row.id}",
+        json={
+            "ad_server": "adsterra",
+            "ad_slots": {
+                "home-feed": {
+                    "provider": "adsterra",
+                    "type": "banner",
+                    "key": "zone",
+                },
+                "place-detail-mid": "ca-pub-test/111",
+            },
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["ad_server"] == "adsterra"
+
+    public_resp = client.get("/api/v1/ads/config", params={"platform": "web"})
+    assert public_resp.status_code == 200
+    public_data = public_resp.json()
+    assert public_data["ad_server"] == "adsterra"
+    assert public_data["ad_slots"] == {
+        "home-feed": {"provider": "adsterra", "type": "banner", "key": "zone"}
+    }
+
+
+def test_admin_patch_ad_config_rejects_invalid_ad_server(client, db_session):
+    row = _seed_ad_config(db_session, "web")
+    headers = _admin_headers(client, db_session)
+    resp = client.patch(
+        f"/api/v1/admin/ads/config/{row.id}",
+        json={"ad_server": "unknown"},
+        headers=headers,
+    )
+    assert resp.status_code == 422
 
 
 def test_admin_patch_ad_config_not_found(client, db_session):

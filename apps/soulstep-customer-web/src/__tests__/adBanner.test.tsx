@@ -3,7 +3,11 @@ import { createRoot } from 'react-dom/client';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AdBanner from '@/components/ads/AdBanner';
-import type { AdSlotConfig } from '@/components/ads/ad-constants';
+import {
+  filterSlotsForAdServer,
+  resolveAdsenseSlotId,
+  type AdSlotConfig,
+} from '@/components/ads/ad-constants';
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -14,6 +18,7 @@ let mockSlotConfig: AdSlotConfig = 'ca-pub-1234567890/9876543210';
 vi.mock('@/components/ads/AdProvider', () => ({
   useAds: () => ({
     canShowAds: true,
+    adServer: 'adsense',
     getSlotConfig: () => mockSlotConfig,
     getSlotId: () => 'ca-pub-1234567890/9876543210',
     consent: { ads: true, analytics: true },
@@ -100,5 +105,36 @@ describe('AdBanner', () => {
     expect(scripts[1].getAttribute('src')).toBe(
       'https://www.highperformanceformat.com/adsterra-zone-key/invoke.js',
     );
+  });
+
+  it('filters slot configs to the configured ad server', () => {
+    const slots = {
+      'home-feed': {
+        provider: 'adsterra',
+        type: 'banner',
+        key: 'adsterra-zone-key',
+      },
+      'place-detail-mid': 'ca-pub-123/456',
+      'place-detail-bottom': {
+        provider: 'adsense',
+        slotId: 'ca-pub-123/789',
+      },
+    } as const;
+
+    expect(filterSlotsForAdServer(slots, 'adsterra')).toEqual({
+      'home-feed': {
+        provider: 'adsterra',
+        type: 'banner',
+        key: 'adsterra-zone-key',
+      },
+    });
+    expect(filterSlotsForAdServer(slots, 'adsense')).toEqual({
+      'place-detail-mid': 'ca-pub-123/456',
+      'place-detail-bottom': {
+        provider: 'adsense',
+        slotId: 'ca-pub-123/789',
+      },
+    });
+    expect(resolveAdsenseSlotId(filterSlotsForAdServer(slots, 'adsterra')['home-feed'])).toBe('');
   });
 });

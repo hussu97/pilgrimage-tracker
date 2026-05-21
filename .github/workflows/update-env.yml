@@ -44,6 +44,7 @@ jobs:
           RESET_URL_BASE=${{ secrets.RESET_URL_BASE }}
           VERIFY_URL_BASE=${{ secrets.VERIFY_URL_BASE }}
           ADS_ENABLED=${{ secrets.ADS_ENABLED }}
+          ADS_SERVER=${{ secrets.ADS_SERVER }}
           ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
           AD_SLOTS_JSON=${{ secrets.AD_SLOTS_JSON }}
           IMAGE_STORAGE=${{ secrets.IMAGE_STORAGE }}

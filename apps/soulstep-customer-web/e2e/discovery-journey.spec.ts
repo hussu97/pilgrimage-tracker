@@ -11,6 +11,7 @@ async function enableAdsConsentBanner(page: import('@playwright/test').Page) {
       body: JSON.stringify({
         platform: 'web',
         ads_enabled: true,
+        ad_server: 'adsense',
         adsense_publisher_id: 'ca-pub-test',
         ad_slots: {},
       }),
