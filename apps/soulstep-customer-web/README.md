@@ -21,9 +21,11 @@ App runs at http://localhost:5173
 | `INTERNAL_API_URL`                 | Catalog-api URL for server-side / SSR fetches                               |
 | `NEXT_PUBLIC_PROXY_TARGET`         | API proxy target for local dev rewrites                                     |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID`     | Umami website ID; enables `/lib/app.js` + `/api/send` same-origin analytics |
-| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID                                                 |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID; only needed for AdSense slots                  |
 
 Only `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is read for Umami. `VITE_UMAMI_WEBSITE_ID` and old native-app env names are ignored by the Next.js app.
+
+Ad slots are served from catalog-api via `GET /api/v1/ads/config?platform=web`. Configure Adsterra slot objects in the backend `AD_SLOTS_JSON` env var documented in `PRODUCTION.md §11`; the web app supports visible feed/detail slots plus `global-social-bar` and `global-popunder`.
 
 ## Browser Cache Cleanup
 
@@ -57,7 +59,7 @@ catalog-api owns the generated XML/HTML payloads.
 | ------------------ | -------------------------------------------------------------------- |
 | `/sitemap.xml`     | Proxies the catalog sitemap index without ISR body caching           |
 | `/sitemaps/:path*` | Proxies chunked catalog sitemap files, e.g. `/sitemaps/places-1.xml` |
-| `/ads.txt`         | Static Google seller file with crawler-friendly text/cache headers   |
+| `/ads.txt`         | Static seller file with crawler-friendly text/cache headers          |
 | `/robots.txt`      | Static robots file with crawler-friendly text/cache headers          |
 | `/llms.txt`        | Static AI crawler summary with crawler-friendly text/cache headers   |
 | `/.well-known/*`   | Static well-known metadata with crawler-friendly cache headers       |

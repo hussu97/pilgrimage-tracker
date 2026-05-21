@@ -6,6 +6,7 @@ import { useHead } from '@/lib/hooks/useHead';
 import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+import AdBanner from '@/components/ads/AdBanner';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { EVENTS } from '@/lib/analytics/events';
 import type { Place, Religion } from '@/lib/types';
@@ -267,6 +268,8 @@ export default function ExploreCity() {
           )}
         </p>
       )}
+
+      <AdBanner slot="explore-city-feed" format="horizontal" className="mb-5" />
 
       {loading ? (
         <div className="flex justify-center py-12">

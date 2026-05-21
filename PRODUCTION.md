@@ -443,9 +443,12 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web build-time vars g
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for place images. Required when `IMAGE_STORAGE=gcs`. |
 | `DATA_SCRAPER_URL` | — | `http://localhost:8001` | scraper-api URL for admin proxy. Docker Compose: `http://scraper-api:8080`. |
 | `ADS_ENABLED` | — | `false` | Master switch for ads. |
-| `ADSENSE_PUBLISHER_ID` | — | — | AdSense publisher ID. Required when `ADS_ENABLED=true`. |
+| `ADSENSE_PUBLISHER_ID` | — | — | AdSense publisher ID. Required only for AdSense-backed slots. |
+| `AD_SLOTS_JSON` | — | — | JSON object keyed by customer-web slot name. Use Adsterra slot objects such as `{"home-feed":{"provider":"adsterra","type":"banner","key":"zone","width":320,"height":50}}`. Overrides seeded slot defaults when set. |
 | `SENTRY_DSN` | — | — | Sentry DSN for backend errors. Shared with scraper-api via Compose. |
 | `CATALOG_SYNC_LOG_DIR` | — | `/tmp/soulstep-catalog-sync` | Directory inside catalog-api where detached direct scraper-to-catalog sync jobs write run-scoped logs. |
+
+Supported web ad slot keys: `home-feed`, `places-feed`, `explore-feed`, `explore-city-feed`, `journeys-feed`, `blog-list-feed`, `place-detail-top`, `place-detail-mid`, `place-detail-bottom`, `checkins-top`, `checkins-mid`, `favorites-feed`, `group-detail-bottom`, `profile-bottom`, `notifications-bottom`, `global-social-bar`, `global-popunder`.
 
 ---
 

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sqlmodel import SQLModel, select
 
+from app.core.config import AD_SLOTS_JSON, ADS_ENABLED, ADSENSE_PUBLISHER_ID
 from app.core.security import hash_password
 from app.db import content_translations as ct_db
 from app.db import groups as groups_db
@@ -75,24 +76,14 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
 
 
 def _seed_ad_config() -> None:
-    """Upsert the web AdConfig row with ads enabled.
+    """Upsert the web AdConfig row from environment defaults.
 
-    Safe to call repeatedly — updates existing rows rather than inserting duplicates.
-    Publisher ID matches the hardcoded value in the frontend ad-constants.ts.
+    Safe to call repeatedly — updates existing rows rather than inserting duplicates. Adsterra
+    setups should provide AD_SLOTS_JSON with per-slot objects copied from the publisher console.
     """
-    _PUBLISHER_ID = "ca-pub-7902951158656200"
-    _WEB_SLOTS = {
-        "home-feed": f"{_PUBLISHER_ID}/home-feed",
-        "place-detail-top": f"{_PUBLISHER_ID}/place-detail-top",
-        "place-detail-mid": f"{_PUBLISHER_ID}/place-detail-mid",
-        "place-detail-bottom": f"{_PUBLISHER_ID}/place-detail-bottom",
-        "checkins-top": f"{_PUBLISHER_ID}/checkins-top",
-        "checkins-mid": f"{_PUBLISHER_ID}/checkins-mid",
-        "favorites-feed": f"{_PUBLISHER_ID}/favorites-feed",
-        "group-detail-bottom": f"{_PUBLISHER_ID}/group-detail-bottom",
-        "profile-bottom": f"{_PUBLISHER_ID}/profile-bottom",
-        "notifications-bottom": f"{_PUBLISHER_ID}/notifications-bottom",
-    }
+    default_slots = _default_ad_slots(ADSENSE_PUBLISHER_ID)
+    configured_slots = _parse_ad_slots_json(AD_SLOTS_JSON)
+    web_slots = configured_slots if configured_slots is not None else default_slots
 
     with Session(engine) as session:
         row = session.exec(select(AdConfig).where(AdConfig.platform == "web")).first()
@@ -100,19 +91,55 @@ def _seed_ad_config() -> None:
             session.add(
                 AdConfig(
                     platform="web",
-                    ads_enabled=True,
-                    adsense_publisher_id=_PUBLISHER_ID,
-                    ad_slots=_WEB_SLOTS,
+                    ads_enabled=ADS_ENABLED,
+                    adsense_publisher_id=ADSENSE_PUBLISHER_ID,
+                    ad_slots=web_slots,
                     updated_at=datetime.now(UTC),
                 )
             )
         else:
-            row.ads_enabled = True
-            row.adsense_publisher_id = _PUBLISHER_ID
-            if not row.ad_slots:
-                row.ad_slots = _WEB_SLOTS
+            row.ads_enabled = ADS_ENABLED
+            row.adsense_publisher_id = ADSENSE_PUBLISHER_ID
+            if configured_slots is not None or not row.ad_slots:
+                row.ad_slots = web_slots
             row.updated_at = datetime.now(UTC)
         session.commit()
+
+
+def _default_ad_slots(publisher_id: str) -> dict[str, str]:
+    if not publisher_id:
+        return {}
+    return {
+        "home-feed": f"{publisher_id}/home-feed",
+        "places-feed": f"{publisher_id}/places-feed",
+        "explore-feed": f"{publisher_id}/explore-feed",
+        "explore-city-feed": f"{publisher_id}/explore-city-feed",
+        "journeys-feed": f"{publisher_id}/journeys-feed",
+        "blog-list-feed": f"{publisher_id}/blog-list-feed",
+        "place-detail-top": f"{publisher_id}/place-detail-top",
+        "place-detail-mid": f"{publisher_id}/place-detail-mid",
+        "place-detail-bottom": f"{publisher_id}/place-detail-bottom",
+        "checkins-top": f"{publisher_id}/checkins-top",
+        "checkins-mid": f"{publisher_id}/checkins-mid",
+        "favorites-feed": f"{publisher_id}/favorites-feed",
+        "group-detail-bottom": f"{publisher_id}/group-detail-bottom",
+        "profile-bottom": f"{publisher_id}/profile-bottom",
+        "notifications-bottom": f"{publisher_id}/notifications-bottom",
+    }
+
+
+def _parse_ad_slots_json(raw: str) -> dict | None:
+    if not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("AD_SLOTS_JSON is not valid JSON; keeping existing ad slots")
+        return None
+    if not isinstance(parsed, dict):
+        logger.warning("AD_SLOTS_JSON must be a JSON object keyed by ad slot")
+        return None
+    return parsed
 
 
 def _seed_blog_posts() -> None:

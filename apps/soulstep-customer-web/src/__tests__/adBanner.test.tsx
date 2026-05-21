@@ -3,14 +3,18 @@ import { createRoot } from 'react-dom/client';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import AdBanner from '@/components/ads/AdBanner';
+import type { AdSlotConfig } from '@/components/ads/ad-constants';
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
+let mockSlotConfig: AdSlotConfig = 'ca-pub-1234567890/9876543210';
+
 vi.mock('@/components/ads/AdProvider', () => ({
   useAds: () => ({
     canShowAds: true,
+    getSlotConfig: () => mockSlotConfig,
     getSlotId: () => 'ca-pub-1234567890/9876543210',
     consent: { ads: true, analytics: true },
     setConsent: vi.fn(),
@@ -51,6 +55,7 @@ afterEach(() => {
   mountedRoots = [];
   document.body.innerHTML = '';
   delete (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle;
+  mockSlotConfig = 'ca-pub-1234567890/9876543210';
 });
 
 describe('AdBanner', () => {
@@ -76,5 +81,24 @@ describe('AdBanner', () => {
       });
     }).not.toThrow();
     mountedRoots = mountedRoots.filter((mountedRoot) => mountedRoot !== root);
+  });
+
+  it('renders an Adsterra banner tag from slot config', () => {
+    mockSlotConfig = {
+      provider: 'adsterra',
+      type: 'banner',
+      key: 'adsterra-zone-key',
+      width: 320,
+      height: 50,
+    };
+
+    const { container } = renderComponent(<AdBanner slot="home-feed" format="horizontal" />);
+
+    const scripts = container.querySelectorAll('script');
+    expect(scripts).toHaveLength(2);
+    expect(scripts[0].textContent).toContain('adsterra-zone-key');
+    expect(scripts[1].getAttribute('src')).toBe(
+      'https://www.highperformanceformat.com/adsterra-zone-key/invoke.js',
+    );
   });
 });

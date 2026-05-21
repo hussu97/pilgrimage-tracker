@@ -18,6 +18,7 @@ import type { Place, Religion } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import PlaceImage from '@/components/places/PlaceImage';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
+import AdBanner from '@/components/ads/AdBanner';
 import {
   DISCOVERY_JOURNEY_DRAFT_KEY,
   buildDiscoveryJourneyDraft,
@@ -397,6 +398,8 @@ export default function Home() {
                   {t('discover.viewMap')}
                 </Link>
               </div>
+
+              <AdBanner slot="home-feed" format="horizontal" className="mb-5" />
 
               {(homeLoading && !homeData) || queryLoading ? (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

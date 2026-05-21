@@ -19,6 +19,6 @@ describe('desktop navigation hardening', () => {
   });
 
   it('bumps the app shell release marker for returning browsers', () => {
-    expect(APP_RELEASE).toBe('ad-rejection-guard-2026-05-12');
+    expect(APP_RELEASE).toBe('adsterra-ad-slots-2026-05-21');
   });
 });

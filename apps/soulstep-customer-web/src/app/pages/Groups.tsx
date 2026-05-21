@@ -12,6 +12,7 @@ import PlaceImage from '@/components/places/PlaceImage';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import GroupListSkeleton from '@/components/common/skeletons/GroupListSkeleton';
+import AdBanner from '@/components/ads/AdBanner';
 import type { Group } from '@/lib/types';
 
 function formatRelative(iso: string | null | undefined, t: (key: string) => string): string {
@@ -248,6 +249,8 @@ export default function Groups() {
                 </button>
               ))}
             </div>
+
+            <AdBanner slot="journeys-feed" format="horizontal" className="mb-5" />
 
             {/* Journey cards */}
             <AnimatePresence mode="popLayout">

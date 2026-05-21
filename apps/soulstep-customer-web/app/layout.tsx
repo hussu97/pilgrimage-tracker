@@ -5,7 +5,7 @@ import { AppClientShell } from './AppClientShell';
 import type { InitialI18nPayload } from '@/app/providers';
 import { APP_RELEASE, APP_RELEASE_RELOAD_PARAM, APP_RELEASE_STORAGE_KEY } from '@/lib/appRelease';
 
-const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID ?? 'ca-pub-7902951158656200';
+const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID ?? '';
 const UMAMI_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ?? '';
 const API_BASE = (
   process.env.INTERNAL_API_URL ||
@@ -140,10 +140,12 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: '/apple-touch-icon.png?v=20260502', sizes: '180x180', type: 'image/png' }],
   },
-  other: {
-    // Google AdSense verification tag
-    'google-adsense-account': ADSENSE_ID,
-  },
+  other: ADSENSE_ID
+    ? {
+        // Google AdSense verification tag
+        'google-adsense-account': ADSENSE_ID,
+      }
+    : undefined,
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

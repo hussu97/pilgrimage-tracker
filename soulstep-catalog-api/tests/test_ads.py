@@ -7,6 +7,7 @@ from sqlmodel import select
 
 from app.api.v1 import ads as ads_module
 from app.db.models import AdConfig, ConsentRecord, User
+from app.db.seed import _default_ad_slots, _parse_ad_slots_json
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,40 @@ def test_get_ad_config_for_platform(client, db_session):
     assert data["ads_enabled"] is True
     assert data["adsense_publisher_id"] == "ca-pub-test123"
     assert data["ad_slots"] == {"place-detail-mid": "slot-111"}
+
+
+def test_get_ad_config_supports_adsterra_slot_objects(client, db_session):
+    db_session.add(
+        AdConfig(
+            platform="web",
+            ads_enabled=True,
+            adsense_publisher_id="",
+            ad_slots={
+                "home-feed": {
+                    "provider": "adsterra",
+                    "type": "banner",
+                    "key": "adsterra-zone-key",
+                    "width": 320,
+                    "height": 50,
+                }
+            },
+            updated_at=datetime.now(UTC),
+        )
+    )
+    db_session.commit()
+
+    resp = client.get("/api/v1/ads/config", params={"platform": "web"})
+    assert resp.status_code == 200
+    assert resp.json()["ad_slots"]["home-feed"]["provider"] == "adsterra"
+
+
+def test_ad_slot_seed_helpers_parse_configurable_slots():
+    raw = '{"home-feed":{"provider":"adsterra","type":"banner","key":"zone"}}'
+    assert _parse_ad_slots_json(raw) == {
+        "home-feed": {"provider": "adsterra", "type": "banner", "key": "zone"}
+    }
+    assert _parse_ad_slots_json("[]") is None
+    assert _default_ad_slots("ca-pub-test")["places-feed"] == "ca-pub-test/places-feed"
 
 
 def test_get_ad_config_invalid_platform(client):

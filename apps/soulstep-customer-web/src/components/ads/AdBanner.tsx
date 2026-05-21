@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AdBanner — renders a Google AdSense ad unit.
+ * AdBanner — renders a configured ad unit.
  *
  * Self-gating: renders nothing when ads are disabled, consent not given,
  * or user is premium. Dark-mode and RTL aware.
@@ -12,7 +12,8 @@
 import { useEffect, useRef } from 'react';
 import { useAds } from './AdProvider';
 import { useI18n } from '@/app/providers';
-import type { AdSlotName, AdFormat } from './ad-constants';
+import { renderAdsterraSlot } from './adsterra';
+import type { AdSlotName, AdFormat, AdSlotConfig, AdsterraSlotConfig } from './ad-constants';
 
 interface AdBannerProps {
   /** Slot name — maps to an ad unit ID via backend config. */
@@ -24,17 +25,27 @@ interface AdBannerProps {
 }
 
 export default function AdBanner({ slot, format = 'auto', className = '' }: AdBannerProps) {
-  const { canShowAds, getSlotId } = useAds();
+  const { canShowAds, getSlotConfig, getSlotId } = useAds();
   const { t, locale } = useI18n();
   const adHostRef = useRef<HTMLDivElement>(null);
+  const slotConfig = getSlotConfig(slot);
   const slotId = getSlotId(slot);
   const isRtl = locale === 'ar';
 
   useEffect(() => {
     const host = adHostRef.current;
-    if (!canShowAds || !slotId || !host) return;
+    if (!canShowAds || !slotConfig || !host) return;
 
     host.replaceChildren();
+
+    if (isAdsterraSlot(slotConfig)) {
+      renderAdsterraSlot(host, slotConfig, format);
+      return () => {
+        host.replaceChildren();
+      };
+    }
+
+    if (!slotId) return;
 
     const ins = document.createElement('ins');
     ins.className = 'adsbygoogle';
@@ -60,9 +71,9 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
       ins.parentNode?.removeChild(ins);
       host.replaceChildren();
     };
-  }, [canShowAds, format, slotId]);
+  }, [canShowAds, format, slotConfig, slotId]);
 
-  if (!canShowAds || !slotId) return null;
+  if (!canShowAds || !hasRenderableSlot(slotConfig)) return null;
 
   return (
     <div
@@ -76,4 +87,17 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
       <div ref={adHostRef} />
     </div>
   );
+}
+
+function isAdsterraSlot(config: AdSlotConfig | undefined): config is AdsterraSlotConfig {
+  return typeof config === 'object' && config !== null && config.provider === 'adsterra';
+}
+
+function hasRenderableSlot(config: AdSlotConfig | undefined): boolean {
+  if (!config) return false;
+  if (typeof config === 'string') return Boolean(config);
+  if (config.provider === 'adsterra') {
+    return Boolean(config.scriptSrc || config.script_src || config.key);
+  }
+  return Boolean(config.slotId || config.slot_id);
 }

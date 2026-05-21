@@ -10,6 +10,7 @@ import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { EVENTS } from '@/lib/analytics/events';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
+import AdBanner from '@/components/ads/AdBanner';
 
 const RELIGIONS: Array<{ value: Religion | ''; labelKey: string }> = [
   { value: '', labelKey: 'common.all' },
@@ -189,6 +190,8 @@ export default function Places() {
           </button>
         ))}
       </div>
+
+      <AdBanner slot="places-feed" format="horizontal" className="mb-6" />
 
       {loading && places.length === 0 ? (
         <div className="flex justify-center py-12">

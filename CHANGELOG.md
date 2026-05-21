@@ -4,6 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-21] — Adsterra ad slot integration
+
+### Backend
+- Added `AD_SLOTS_JSON` support so catalog-api can seed provider-specific web ad slot configs, including Adsterra slot objects, without requiring AdSense IDs.
+
+### Frontend (web)
+- Generalized the customer web ad renderer to support AdSense strings and Adsterra banner/native/global script slot objects behind the existing consent gate.
+- Added missing ad placements on home, places, explore, city detail, journeys, and blog listing screens, and bumped the customer web release marker.
+
+### Docs
+- Documented Adsterra slot configuration in the backend env reference and customer/catalog README files.
+
+### Tests
+- Added backend coverage for Adsterra slot config pass-through and customer-web coverage for Adsterra script rendering.
+
+---
+
 ## [2026-05-17] — Catalog DB pool pressure hardening
 
 ### Backend

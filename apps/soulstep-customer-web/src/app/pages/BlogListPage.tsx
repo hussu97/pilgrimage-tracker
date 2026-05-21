@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Link } from '@/lib/navigation';
 import { useHead } from '@/lib/hooks/useHead';
 import { getBlogPosts } from '@/lib/api/client';
+import AdBanner from '@/components/ads/AdBanner';
 import type { BlogPostSummary } from '@/lib/types/blog';
 
 const CATEGORIES = [
@@ -224,6 +225,8 @@ export default function BlogListPage() {
             : `${filtered.length} article${filtered.length !== 1 ? 's' : ''}${hasActiveFilters ? ' matching your filters' : ''}`}
         </p>
       )}
+
+      <AdBanner slot="blog-list-feed" format="horizontal" className="mb-6" />
 
       {/* Article grid */}
       {loading ? (

@@ -7,6 +7,15 @@ const backendOrigin =
     ? process.env.NEXT_PUBLIC_PROXY_TARGET || 'http://127.0.0.1:3000'
     : process.env.NEXT_PUBLIC_API_BASE_URL || 'https://catalog-api.soul-step.org';
 
+const adsterraOrigins = [
+  'https://www.highperformanceformat.com',
+  'https://*.highperformanceformat.com',
+  'https://*.highperformancecpmgate.com',
+  'https://*.highrevenuegate.com',
+  'https://*.profitableratecpm.com',
+  'https://*.adsterra.com',
+];
+
 const nextConfig: NextConfig = {
   async headers() {
     const scriptSrc = [
@@ -17,6 +26,7 @@ const nextConfig: NextConfig = {
       'https://www.googletagservices.com',
       'https://adservice.google.com',
       'https://tpc.googlesyndication.com',
+      ...adsterraOrigins,
       'https://cloud.umami.is',
     ].join(' ');
     const csp = [
@@ -25,8 +35,8 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https:",
-      "connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.run.app https://soul-step.org https://www.soul-step.org https://catalog-api.soul-step.org https://pagead2.googlesyndication.com https://*.adtrafficquality.google https://*.ingest.us.sentry.io https://*.ingest.sentry.io",
-      'frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com',
+      `connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.run.app https://soul-step.org https://www.soul-step.org https://catalog-api.soul-step.org https://pagead2.googlesyndication.com https://*.adtrafficquality.google ${adsterraOrigins.join(' ')} https://*.ingest.us.sentry.io https://*.ingest.sentry.io`,
+      `frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com ${adsterraOrigins.join(' ')}`,
       "frame-ancestors 'none'",
     ].join('; ');
 

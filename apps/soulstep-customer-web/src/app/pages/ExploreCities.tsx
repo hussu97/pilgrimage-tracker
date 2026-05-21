@@ -8,6 +8,7 @@ import * as api from '@/lib/api/client';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { EVENTS } from '@/lib/analytics/events';
 import PlaceImage from '@/components/places/PlaceImage';
+import AdBanner from '@/components/ads/AdBanner';
 
 const PAGE_SIZE = 24;
 
@@ -186,6 +187,8 @@ export default function ExploreCities() {
         onChange={(e) => setSearch(e.target.value)}
         className="w-full px-4 py-2.5 rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface text-sm text-text-main dark:text-white placeholder-text-muted dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-primary mb-6"
       />
+
+      <AdBanner slot="explore-feed" format="horizontal" className="mb-6" />
 
       {loading ? (
         <div className="flex justify-center py-12">
