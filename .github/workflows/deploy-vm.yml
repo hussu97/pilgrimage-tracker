@@ -232,6 +232,7 @@ jobs:
           # ── Catalog-api: ads ──────────────────────────────────────────────────
           ADS_ENABLED=${{ secrets.ADS_ENABLED }}
           ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
+          AD_SLOTS_JSON=${{ secrets.AD_SLOTS_JSON }}
           # ── Catalog-api: image storage ────────────────────────────────────────
           IMAGE_STORAGE=${{ secrets.IMAGE_STORAGE }}
           # ── Catalog-api: browser-translation pool ─────────────────────────────

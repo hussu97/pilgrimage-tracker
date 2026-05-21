@@ -8,6 +8,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Backend
 - Added `AD_SLOTS_JSON` support so catalog-api can seed provider-specific web ad slot configs, including Adsterra slot objects, without requiring AdSense IDs.
+- Forwarded `AD_SLOTS_JSON` through production Docker Compose and VM environment update/deploy workflows.
 
 ### Frontend (web)
 - Generalized the customer web ad renderer to support AdSense strings and Adsterra banner/native/global script slot objects behind the existing consent gate.
