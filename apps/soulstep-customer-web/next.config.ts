@@ -10,6 +10,8 @@ const backendOrigin =
 const adsterraOrigins = [
   'https://www.highperformanceformat.com',
   'https://*.highperformanceformat.com',
+  'https://www.effectivecpmnetwork.com',
+  'https://*.effectivecpmnetwork.com',
   'https://*.highperformancecpmgate.com',
   'https://*.highrevenuegate.com',
   'https://*.profitableratecpm.com',
