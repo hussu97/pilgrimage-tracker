@@ -11,6 +11,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - Forwarded `AD_SLOTS_JSON` through production Docker Compose and VM environment update/deploy workflows.
 - Added an explicit `ADS_SERVER` / `ad_server` switch for `adsense` vs `adsterra`, persisted it on ad config, and filtered public ad slots to the active provider.
 - Added an Alembic migration for `ad_config.ad_server` and admin API support for switching providers.
+- Made the `ad_config.ad_server` migration idempotent so production restarts recover cleanly when the column already exists but Alembic still needs to stamp the revision.
 
 ### Frontend (web)
 - Generalized the customer web ad renderer to support AdSense strings and Adsterra banner/native/global script slot objects behind the existing consent gate.
@@ -24,6 +25,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Tests
 - Added backend coverage for Adsterra slot config pass-through and customer-web coverage for Adsterra script rendering.
+- Added migration regression coverage for pre-existing `ad_config.ad_server` columns.
 
 ---
 
