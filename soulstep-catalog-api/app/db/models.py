@@ -118,6 +118,11 @@ class UserSettings(SQLModel, table=True):
 
 
 class Place(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_place_lat_lng", "lat", "lng"),
+        Index("ix_place_religion_type_city", "religion", "place_type", "city"),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
     place_code: str = Field(index=True, unique=True)
     name: str = Field(index=True)
@@ -144,6 +149,8 @@ class Place(SQLModel, table=True):
 
 
 class PlaceImage(SQLModel, table=True):
+    __table_args__ = (Index("ix_placeimage_place_order", "place_code", "display_order", "id"),)
+
     id: int | None = Field(default=None, primary_key=True)
     place_code: str = Field(index=True, foreign_key="place.place_code")
     image_type: str = Field(default=ImageType.URL)  # "url", "blob", or "gcs"
@@ -160,6 +167,10 @@ class PlaceImage(SQLModel, table=True):
 
 
 class Review(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_review_place_deleted_rating", "place_code", "deleted_at", "rating"),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
     review_code: str = Field(index=True, unique=True)
     user_code: str | None = Field(default=None, index=True, foreign_key="user.user_code")
@@ -229,6 +240,8 @@ class Favorite(SQLModel, table=True):
 
 
 class Group(SQLModel, table=True):
+    __table_args__ = (Index("ix_group_featured", "is_featured"),)
+
     id: int | None = Field(default=None, primary_key=True)
     group_code: str = Field(index=True, unique=True)
     name: str = Field(index=True)

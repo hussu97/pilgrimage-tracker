@@ -173,6 +173,18 @@ def _clear_places_list_cache():
 
 
 @pytest.fixture(autouse=True)
+def _clear_homepage_cache():
+    """Clear homepage TTL caches before each test to prevent cross-test leakage."""
+    import app.api.v1.homepage as _homepage_mod
+
+    _homepage_mod._public_sections_cache.clear()
+    _homepage_mod._anonymous_recommended_cache.clear()
+    yield
+    _homepage_mod._public_sections_cache.clear()
+    _homepage_mod._anonymous_recommended_cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def _clear_i18n_overrides_cache():
     """Clear the in-process DB-overrides TTL cache before each test.
 

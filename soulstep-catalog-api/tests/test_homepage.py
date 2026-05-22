@@ -75,6 +75,28 @@ def test_homepage_with_location(client):
     assert isinstance(data["recommended_places"], list)
 
 
+def test_homepage_anonymous_request_reuses_cached_public_sections(client, monkeypatch):
+    """Repeated anonymous homepage calls should avoid rebuilding broad public sections."""
+    import app.api.v1.homepage as homepage_mod
+
+    calls = 0
+    original = homepage_mod._build_public_homepage_sections
+
+    def wrapped(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(homepage_mod, "_build_public_homepage_sections", wrapped)
+
+    first = client.get(HOMEPAGE_URL)
+    second = client.get(HOMEPAGE_URL)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert calls == 1
+
+
 def test_homepage_place_count_is_integer(client):
     """place_count is an integer."""
     res = client.get(HOMEPAGE_URL)
@@ -121,6 +143,44 @@ def test_homepage_with_places_in_db(client):
     # popular_cities should include Dubai now
     city_names = [c["city"] for c in data["popular_cities"]]
     assert "Dubai" in city_names
+
+
+def test_homepage_location_recommendations_order_before_limit(client, db_session):
+    """Location recommendations should rank nearby places before the candidate limit."""
+    from app.db.models import Place
+
+    for i in range(60):
+        db_session.add(
+            Place(
+                place_code=f"plc_hp_far_{i:03d}",
+                name=f"Far Place {i}",
+                religion="islam",
+                place_type="mosque",
+                lat=60.0 + (i * 0.001),
+                lng=60.0,
+                address="Far Street",
+                city="Far City",
+            )
+        )
+    db_session.add(
+        Place(
+            place_code="plc_hp_near001",
+            name="Nearby Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=25.0,
+            lng=55.0,
+            address="Near Street",
+            city="Near City",
+        )
+    )
+    db_session.commit()
+
+    res = client.get(HOMEPAGE_URL, params={"lat": 25.0, "lng": 55.0, "religions": ["islam"]})
+
+    assert res.status_code == 200
+    recommended = res.json()["recommended_places"]
+    assert recommended[0]["place_code"] == "plc_hp_near001"
 
 
 def test_homepage_lang_overlays_place_translations(client, db_session):

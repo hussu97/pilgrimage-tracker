@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-22] — Homepage and places latency audit
+
+### Backend
+- Added short-lived homepage caching for public sections and anonymous recommendations, while keeping authenticated journey data private.
+- Ordered location-based homepage recommendations in SQL before applying the candidate limit so nearby places are not missed.
+- Added bounding-box prefiltering for radius-based place retrieval and compound indexes for homepage/place list access patterns.
+
+### Tests
+- Added homepage cache and location-recommendation regression coverage.
+
+---
+
 ## [2026-05-21] — Adsterra ad slot integration
 
 ### Backend

@@ -456,6 +456,21 @@ def list_places(
         else:
             # Crosses antimeridian (e.g. min_lng=170, max_lng=-170)
             base_where.append(or_(Place.lng >= min_lng, Place.lng <= max_lng))
+    elif lat is not None and lng is not None and radius_km is not None:
+        # Reduce proximity requests with an indexed bounding-box prefilter, then
+        # keep the Haversine check below for exact radius semantics.
+        delta_lat = radius_km / 111.0
+        cos_lat = max(abs(math.cos(math.radians(lat))), 0.01)
+        delta_lng = radius_km / (111.0 * cos_lat)
+        base_where.append(Place.lat >= lat - delta_lat)
+        base_where.append(Place.lat <= lat + delta_lat)
+        if lng - delta_lng < -180 or lng + delta_lng > 180:
+            min_wrapped = (lng - delta_lng + 180) % 360 - 180
+            max_wrapped = (lng + delta_lng + 180) % 360 - 180
+            base_where.append(or_(Place.lng >= min_wrapped, Place.lng <= max_wrapped))
+        else:
+            base_where.append(Place.lng >= lng - delta_lng)
+            base_where.append(Place.lng <= lng + delta_lng)
 
     # ── Pass 1: lightweight projection over every matching place.
     # Fetch only the columns needed for Python-side filter/facet work —
