@@ -224,6 +224,30 @@ def test_share_place_lang_en(client):
     resp = client.get("/share/en/places/plc_lang_en")
     assert resp.status_code == 200
     assert 'lang="en"' in resp.text
+    assert "max-age=600" in resp.headers.get("cache-control", "")
+
+
+def test_share_place_lang_reuses_rendered_html_cache(client, monkeypatch):
+    """Repeated language share pages should not hit the DB after the first render."""
+    import app.api.v1.share as share_mod
+
+    _create_place(client, "plc_lang_cache")
+    calls = 0
+    original = share_mod.places_db.get_place_by_code
+
+    def wrapped(place_code, session):
+        nonlocal calls
+        calls += 1
+        return original(place_code, session)
+
+    monkeypatch.setattr(share_mod.places_db, "get_place_by_code", wrapped)
+
+    first = client.get("/share/ar/places/plc_lang_cache")
+    second = client.get("/share/ar/places/plc_lang_cache")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert calls == 1
 
 
 def test_share_place_lang_ar(client):

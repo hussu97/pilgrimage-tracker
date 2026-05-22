@@ -14,6 +14,9 @@ import html as _html
 import json
 import logging
 import re
+import time
+from collections import OrderedDict
+from threading import Lock
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -37,6 +40,42 @@ from app.services.structured_data import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+_SHARE_HTML_CACHE_TTL = 600.0
+_SHARE_HTML_CACHE_MAX_ENTRIES = 2048
+_share_html_cache: OrderedDict[tuple, tuple[str, float]] = OrderedDict()
+_share_html_cache_lock = Lock()
+
+
+def _share_cache_get(key: tuple) -> str | None:
+    now = time.monotonic()
+    with _share_html_cache_lock:
+        entry = _share_html_cache.get(key)
+        if entry is None:
+            return None
+        html, expires_at = entry
+        if now >= expires_at:
+            _share_html_cache.pop(key, None)
+            return None
+        _share_html_cache.move_to_end(key)
+        return html
+
+
+def _share_cache_set(key: tuple, html: str) -> None:
+    with _share_html_cache_lock:
+        _share_html_cache[key] = (html, time.monotonic() + _SHARE_HTML_CACHE_TTL)
+        _share_html_cache.move_to_end(key)
+        while len(_share_html_cache) > _SHARE_HTML_CACHE_MAX_ENTRIES:
+            _share_html_cache.popitem(last=False)
+
+
+def _share_html_response(html: str) -> HTMLResponse:
+    return HTMLResponse(
+        content=html,
+        status_code=200,
+        headers={"Cache-Control": "public, max-age=600, stale-while-revalidate=3600"},
+    )
+
 
 # ── Crawler detection ──────────────────────────────────────────────────────────
 
@@ -302,12 +341,16 @@ def share_place(place_code: str, session: SessionDep, request: Request):
       canonical URL, OG tags, hreflang, and FAQs.
     - Human browsers: receive OG tags + JS redirect to the SPA.
     """
+    lang = _get_lang(request)
+    is_crawler = _is_crawler(request)
+    cache_key = ("place", place_code, lang, is_crawler)
+    cached_html = _share_cache_get(cache_key)
+    if cached_html is not None:
+        return _share_html_response(cached_html)
+
     place = places_db.get_place_by_code(place_code, session)
     if place is None:
         raise HTTPException(status_code=404, detail="Place not found")
-
-    # Determine language from Accept-Language header
-    lang = _get_lang(request)
 
     # Fetch supporting data
     images = place_images.get_images(place_code, session)
@@ -371,8 +414,6 @@ def share_place(place_code: str, session: SessionDep, request: Request):
             schemas.append(faq_schema)
 
     jsonld_html = render_jsonld_script_tags(schemas)
-
-    is_crawler = _is_crawler(request)
 
     # ── Rating / description for display ────────────────────────────────────
     rating_str = ""
@@ -446,7 +487,8 @@ def share_place(place_code: str, session: SessionDep, request: Request):
 </body>
 </html>"""
 
-    return HTMLResponse(content=html, status_code=200)
+    _share_cache_set(cache_key, html)
+    return _share_html_response(html)
 
 
 # ── Static info pages for AI context ──────────────────────────────────────────
@@ -947,6 +989,11 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
     if lang not in _PLACE_LANGS:
         raise HTTPException(status_code=404, detail="Language not supported")
 
+    cache_key = ("place_lang", lang, place_code)
+    cached_html = _share_cache_get(cache_key)
+    if cached_html is not None:
+        return _share_html_response(cached_html)
+
     place = places_db.get_place_by_code(place_code, session)
     if place is None:
         raise HTTPException(status_code=404, detail="Place not found")
@@ -1051,7 +1098,8 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
 </body>
 </html>"""
 
-    return HTMLResponse(content=html, status_code=200)
+    _share_cache_set(cache_key, html)
+    return _share_html_response(html)
 
 
 # ── City landing pages ─────────────────────────────────────────────────────────

@@ -185,6 +185,16 @@ def _clear_homepage_cache():
 
 
 @pytest.fixture(autouse=True)
+def _clear_share_html_cache():
+    """Clear rendered share-page HTML cache before each test."""
+    import app.api.v1.share as _share_mod
+
+    _share_mod._share_html_cache.clear()
+    yield
+    _share_mod._share_html_cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def _clear_i18n_overrides_cache():
     """Clear the in-process DB-overrides TTL cache before each test.
 

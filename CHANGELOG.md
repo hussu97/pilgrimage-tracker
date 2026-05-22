@@ -10,9 +10,11 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - Added short-lived homepage caching for public sections and anonymous recommendations, while keeping authenticated journey data private.
 - Ordered location-based homepage recommendations in SQL before applying the candidate limit so nearby places are not missed.
 - Added bounding-box prefiltering for radius-based place retrieval and compound indexes for homepage/place list access patterns.
+- Added rendered share-page HTML caching and a database-unavailable handler to reduce crawler-driven DB pressure and return clean 503s when Postgres cannot be reached.
 
 ### Tests
 - Added homepage cache and location-recommendation regression coverage.
+- Added share-page cache and database-unavailable regression coverage.
 
 ---
 

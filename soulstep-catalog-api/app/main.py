@@ -40,6 +40,8 @@ from fastapi.responses import JSONResponse  # noqa: E402
 from slowapi import Limiter, _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
 from slowapi.util import get_remote_address  # noqa: E402
+from sqlalchemy.exc import OperationalError  # noqa: E402
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from app.api.v1 import api_router  # noqa: E402
@@ -517,6 +519,24 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": validation_errors},
     )
+
+
+async def _database_unavailable_handler(request: Request, exc: Exception):
+    _log_http_error(
+        request,
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "Database temporarily unavailable",
+        exc=exc,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"detail": "Database temporarily unavailable"},
+        headers={"Retry-After": "5"},
+    )
+
+
+app.add_exception_handler(OperationalError, _database_unavailable_handler)
+app.add_exception_handler(SQLAlchemyTimeoutError, _database_unavailable_handler)
 
 
 @app.exception_handler(Exception)
