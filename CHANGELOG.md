@@ -11,10 +11,12 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - Ordered location-based homepage recommendations in SQL before applying the candidate limit so nearby places are not missed.
 - Added bounding-box prefiltering for radius-based place retrieval and compound indexes for homepage/place list access patterns.
 - Added rendered share-page HTML caching and a database-unavailable handler to reduce crawler-driven DB pressure and return clean 503s when Postgres cannot be reached.
+- Made the homepage/place latency index migration idempotent so production restarts recover cleanly after a partial index creation.
 
 ### Tests
 - Added homepage cache and location-recommendation regression coverage.
 - Added share-page cache and database-unavailable regression coverage.
+- Added migration regression coverage for partially applied homepage/place latency indexes.
 
 ---
 
