@@ -79,7 +79,7 @@ source .venv/bin/activate
 python scripts/handoff.py export --run-code run_abc123 --prod-dsn postgresql://...
 ```
 
-2. Import the bundle into a local DB and resume it locally with sync disabled:
+2. Import the bundle into a local DB and resume it locally:
 
 ```bash
 python scripts/handoff.py resume-local \
@@ -104,7 +104,9 @@ profile that has worked best for large laptop resumes: discovery concurrency
 `7`, browser pool size `7`, active browser concurrency `7`, detail concurrency
 `7`, image concurrency `40`, enrichment concurrency `25`, Overpass
 concurrency `8`, Overpass jitter max `0.25`, max place photos `3`, and
-review images `0`.
+review images `0`. Local handoff runners also force
+`SCRAPER_AUTO_SYNC_AFTER_RUN=true` so completed resumes trigger the catalog sync
+path instead of finishing silently.
 Pass `--discovery-concurrency`, `--detail-concurrency`, `--browser-pool-size`,
 `--browser-concurrency`, `--image-concurrency`, `--enrichment-concurrency`,
 `--overpass-concurrency`, `--overpass-jitter-max`, `--max-photos`, or

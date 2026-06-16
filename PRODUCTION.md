@@ -490,7 +490,7 @@ Supported web ad slot keys: `home-feed`, `places-feed`, `explore-feed`, `explore
 | `MAPS_BROWSER_CONCURRENCY` | — | _(defaults to `SCRAPER_DISCOVERY_CONCURRENCY` when unset)_ | Active browser pool semaphore. Leave unset unless you need a separate override from discovery. |
 | `MAPS_BROWSER_CELL_DELAY_MIN` | — | `1.0` | Minimum per-cell discovery delay in seconds. |
 | `MAPS_BROWSER_CELL_DELAY_MAX` | — | `2.0` | Maximum per-cell discovery delay in seconds. |
-| `SCRAPER_AUTO_SYNC_AFTER_RUN` | — | `false` | Auto-sync to catalog-api after enrichment. |
+| `SCRAPER_AUTO_SYNC_AFTER_RUN` | — | `true` | Auto-sync to catalog-api after enrichment. Local handoff runners force this on for foreground and background resumes. |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | — | `false` | Auto-call catalog-api SEO endpoint after sync. |
 | `SCRAPER_DIRECT_CATALOG_SYNC` | — | `true` in production compose, `false` in bare local config | When true, scraper finalize/sync sends a small control request to catalog-api and catalog-api reads scraper DB directly instead of using `/places/batch`. |
 

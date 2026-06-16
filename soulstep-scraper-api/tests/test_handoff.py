@@ -337,7 +337,7 @@ def test_screen_runner_uses_run_scoped_db_and_log(tmp_path):
     shell_command = cmd[-1]
     assert "DATABASE_URL=" in shell_command
     assert "SCRAPER_RUN_CODE=run_test" in shell_command
-    assert "SCRAPER_AUTO_SYNC_AFTER_RUN=false" in shell_command
+    assert "SCRAPER_AUTO_SYNC_AFTER_RUN=true" in shell_command
     assert "SCRAPER_DETAIL_CONCURRENCY=15" in shell_command
     assert "run_test.log" in shell_command
 

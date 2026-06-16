@@ -275,7 +275,7 @@ def _start_screen_runner(
 ) -> None:
     env_pairs = {
         "DATABASE_URL": database_url,
-        "SCRAPER_AUTO_SYNC_AFTER_RUN": "false",
+        "SCRAPER_AUTO_SYNC_AFTER_RUN": "true",
         "SCRAPER_RUN_CODE": run_code,
         "SCRAPER_RUN_ACTION": run_action,
         "PYTHONUNBUFFERED": "1",
@@ -688,7 +688,7 @@ def resume_local(args: argparse.Namespace) -> int:
     run_action = "resume" if bundle["manifest"].get("resume_from_stage") else "run"
     env = os.environ.copy()
     env["DATABASE_URL"] = args.local_database_url
-    env["SCRAPER_AUTO_SYNC_AFTER_RUN"] = "false"
+    env["SCRAPER_AUTO_SYNC_AFTER_RUN"] = "true"
     env["SCRAPER_RUN_CODE"] = run_code
     env["SCRAPER_RUN_ACTION"] = run_action
     cmd = [sys.executable, "-m", "app.jobs.run"]

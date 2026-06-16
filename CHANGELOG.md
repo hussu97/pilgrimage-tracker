@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-06-16] — Local handoff auto-sync default
+
+### Backend
+- Updated local scraper handoff resume commands to force `SCRAPER_AUTO_SYNC_AFTER_RUN=true` so completed resumed runs trigger catalog sync.
+
+### Docs
+- Updated scraper handoff and production env documentation to make the auto-sync default explicit.
+
+### Tests
+- Updated handoff CLI coverage for the auto-sync environment override.
+
+---
+
 ## [2026-05-22] — Homepage and places latency audit
 
 ### Backend
