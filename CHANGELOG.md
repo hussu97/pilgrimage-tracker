@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-06-16] — Customer web head metadata ownership fix
+
+### Frontend (web)
+- Stopped the client `useHead` hook from imperatively adding/removing `<head>` metadata resources, preventing React 19 hoistable head nodes from crashing with `removeChild` during cleanup.
+
+### Tests
+- Added customer-web regression coverage for title updates and preserving Next-owned metadata resources.
+
+---
+
 ## [2026-06-16] — Local handoff auto-sync default
 
 ### Backend

@@ -1,8 +1,45 @@
-import { describe, it, expect } from 'vitest';
-import type { HeadConfig } from '@/lib/hooks/useHead';
+import { act, createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, describe, expect, it } from 'vitest';
+import { buildDocumentTitle, useHead, type HeadConfig } from '@/lib/hooks/useHead';
 
-// Pure logic tests for HeadConfig type and helper validation
-// (We cannot test DOM manipulation in Vitest without jsdom)
+(
+  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+let mountedRoots: Root[] = [];
+
+function HeadHarness({ config }: { config: HeadConfig }) {
+  useHead(config);
+  return null;
+}
+
+function renderHead(config: HeadConfig) {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  mountedRoots.push(root);
+
+  act(() => {
+    root.render(createElement(HeadHarness, { config }));
+  });
+
+  return { root };
+}
+
+afterEach(() => {
+  for (const root of mountedRoots) {
+    act(() => {
+      root.unmount();
+    });
+  }
+  mountedRoots = [];
+  document.body.innerHTML = '';
+  document.head
+    .querySelectorAll('[data-test-owned-metadata="true"]')
+    .forEach((node) => node.remove());
+  document.title = '';
+});
 
 describe('useHead HeadConfig', () => {
   it('accepts a minimal config', () => {
@@ -45,6 +82,59 @@ describe('useHead HeadConfig', () => {
     const config: HeadConfig = {};
     expect(config.title).toBeUndefined();
     expect(config.jsonLd).toBeUndefined();
+  });
+});
+
+describe('useHead runtime behavior', () => {
+  it('builds SoulStep document titles', () => {
+    expect(buildDocumentTitle('Test Page')).toBe('Test Page | SoulStep');
+    expect(buildDocumentTitle()).toBe('SoulStep');
+  });
+
+  it('updates document.title for client-only page titles', () => {
+    renderHead({ title: 'Test Page' });
+
+    expect(document.title).toBe('Test Page | SoulStep');
+  });
+
+  it('resets only the title it applied', () => {
+    const { root } = renderHead({ title: 'Old Page' });
+    document.title = 'New Page | SoulStep';
+
+    act(() => {
+      root.unmount();
+    });
+    mountedRoots = mountedRoots.filter((mountedRoot) => mountedRoot !== root);
+
+    expect(document.title).toBe('New Page | SoulStep');
+  });
+
+  it('does not append or remove Next-owned metadata resources', () => {
+    const serverMeta = document.createElement('meta');
+    serverMeta.setAttribute('name', 'description');
+    serverMeta.setAttribute('content', 'Server metadata');
+    serverMeta.setAttribute('data-test-owned-metadata', 'true');
+    document.head.appendChild(serverMeta);
+
+    const { root } = renderHead({
+      title: 'Metadata Page',
+      description: 'Client description',
+      canonicalUrl: 'https://www.soul-step.org/metadata-page',
+      jsonLd: [{ '@context': 'https://schema.org', '@type': 'WebPage' }],
+    });
+
+    expect(
+      document.head.querySelector('meta[name="description"][content="Client description"]'),
+    ).toBeNull();
+    expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();
+    expect(document.head.querySelector('script[type="application/ld+json"]')).toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+    mountedRoots = mountedRoots.filter((mountedRoot) => mountedRoot !== root);
+
+    expect(document.head.contains(serverMeta)).toBe(true);
   });
 });
 
