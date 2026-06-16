@@ -226,7 +226,7 @@ challenge fails, verify nginx is up in HTTP-only mode and port 80 is open in GCP
 
 VM deploy sequence: `git pull` → `docker compose pull` → `docker compose up --force-recreate` → alembic migrations run via catalog-api lifespan hook → health check (30 × 5 s) → `nginx reload` → `docker image prune -f`.
 
-The VM `scraper-api` service is capped at `768m` in `docker-compose.prod.yml` so production handoff finalize imports have enough memory to deserialize and replace large run bundles. The browser-heavy scraping work still runs in Cloud Run Jobs with separate 6Gi limits.
+The VM `scraper-api` service is capped at `768m` in `docker-compose.prod.yml` so production handoff finalize imports have enough memory to deserialize and replace large run bundles. The scraper nginx vhost accepts handoff finalize uploads up to `256M`; keep this higher than the catalog vhost because completed run bundles can exceed 20 MB after gzip compression. The browser-heavy scraping work still runs in Cloud Run Jobs with separate 6Gi limits.
 
 ---
 
@@ -328,6 +328,7 @@ python scripts/handoff.py resume-local --bundle /tmp/run_abc123-....json.gz --lo
 python scripts/handoff.py start-local-bg --run-code run_abc123 --prod-dsn postgresql://...
 python scripts/handoff.py finalize --bundle /tmp/run_abc123-....json.gz --local-database-url sqlite:///local-handoffs/run_abc123.db --prod-url https://scraper-api.soul-step.org
 python scripts/handoff.py finalize-bg --bundle local-handoffs/run_abc123-....json.gz --prod-url https://scraper-api.soul-step.org
+python scripts/handoff.py finalize-db --run-code run_abc123 --handoff-code hof_abc123 --local-database-url sqlite:///local-handoffs/run_abc123.db --prod-dsn postgresql://... --prod-url https://scraper-api.soul-step.org
 python scripts/handoff.py monitor --run-code run_abc123 --prod-url https://scraper-api.soul-step.org
 python scripts/handoff.py pause-local --run-code run_abc123
 python scripts/handoff.py resume-bg --run-code run_abc123
@@ -345,8 +346,9 @@ Operational notes:
 - `POST /api/v1/scraper/runs/{run_code}/handoff/export` also exists on the server and freezes the run by creating a `RunHandoff`.
 - `start-local-bg` is the preferred local operator command for long resumes: it stores the bundle, local DB, and log under `soulstep-scraper-api/local-handoffs/`, then launches a detached `screen` session.
 - While a handoff is active, run mutations (`resume`, `cancel`, `sync`, `retry-images`, `re-enrich`) return `409`.
-- Finalize uploads raw gzip bytes to `POST /api/v1/scraper/runs/{run_code}/handoff/finalize?handoff_code=...`; production remains the only place that performs the final sync/SEO steps.
+- Finalize streams raw gzip bytes to `POST /api/v1/scraper/runs/{run_code}/handoff/finalize?handoff_code=...`; production remains the only place that performs the final sync/SEO steps. The scraper nginx vhost allows up to `256M`; `413 Request Entity Too Large` means nginx is serving an older limit.
 - Pass `--local-database-url` when finalizing from a resumed local run so the CLI rebuilds a fresh finalize bundle from the local DB instead of uploading the original export snapshot.
+- For very large completed local DBs that exceed the scraper API's memory envelope, use `finalize-db` with a production scraper Postgres DSN. It chunk-replaces production scraper run rows, marks the `RunHandoff` completed, then triggers the same `/sync` path when `--prod-url` is provided.
 - `finalize-bg` starts the same finalize/catalog-sync flow in a detached `screen` session and writes `local-handoffs/{run_code}.catalog-sync.log` plus a fresh `*-finalize.json.gz` bundle for monitor-friendly auditing.
 - `monitor` checks local run DBs/logs and starts `finalize-bg` exactly once for each completed run with no pending/failed assets or recent local errors.
 - `pause-local` and `resume-bg` are the laptop-safe local controls for an already-handed-off run; progress is preserved in the run-scoped local DB and resumed from the persisted stage. If a local screen ignores the graceful cancel, `pause-local --force` quits the screen and terminates stale child Python/Playwright/Chromium processes matched to that run-scoped DB/log.

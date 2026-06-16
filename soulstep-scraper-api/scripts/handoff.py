@@ -397,11 +397,173 @@ def _post_finalize_bundle(
         resp = client.post(
             f"{prod_url.rstrip('/')}/api/v1/scraper/runs/{run_code}/handoff/finalize",
             params={"handoff_code": handoff_code},
-            content=fh.read(),
+            content=fh,
             headers={"Content-Type": "application/gzip"},
         )
     resp.raise_for_status()
     return resp.json()
+
+
+RUN_SCOPED_IMPORT_MODELS: tuple[tuple[str, type[SQLModel]], ...] = (
+    ("discovery_cells", DiscoveryCell),
+    ("scraped_places", ScrapedPlace),
+    ("raw_collector_data", RawCollectorData),
+    ("scraped_assets", ScrapedAsset),
+)
+
+REFERENCE_IMPORT_MODELS: tuple[type[SQLModel], ...] = (
+    DataLocation,
+    GeoBoundary,
+    GeoBoundaryBox,
+    PlaceTypeMapping,
+)
+
+
+def _dump_model(row: SQLModel) -> dict:
+    return row.model_dump() if hasattr(row, "model_dump") else dict(row)
+
+
+def _iter_model_chunks(
+    session: Session,
+    model: type[SQLModel],
+    *,
+    chunk_size: int,
+    run_code: str | None = None,
+):
+    last_id = 0
+    id_col = model.id
+    while True:
+        stmt = select(model).where(id_col > last_id).order_by(id_col).limit(chunk_size)
+        if run_code is not None:
+            stmt = stmt.where(model.run_code == run_code)
+        rows = session.exec(stmt).all()
+        if not rows:
+            break
+        yield rows
+        last_id = max(row.id or last_id for row in rows)
+        session.expunge_all()
+
+
+def _insert_run_scoped_chunks(
+    source: Session,
+    target: Session,
+    model: type[SQLModel],
+    *,
+    run_code: str,
+    chunk_size: int,
+) -> int:
+    inserted = 0
+    for rows in _iter_model_chunks(source, model, chunk_size=chunk_size, run_code=run_code):
+        for row in rows:
+            data = _dump_model(row)
+            data.pop("id", None)
+            target.add(hydrate_row(model, data))
+        target.commit()
+        target.expunge_all()
+        inserted += len(rows)
+    return inserted
+
+
+def _finalize_prod_from_local_db(
+    *,
+    local_database_url: str,
+    prod_dsn: str,
+    run_code: str,
+    handoff_code: str,
+    chunk_size: int = 1000,
+) -> dict:
+    source_engine = create_engine(local_database_url, echo=False)
+    target_engine = create_engine(prod_dsn, echo=False)
+    imported_counts: dict[str, int] = {}
+
+    with Session(source_engine) as source, Session(target_engine) as target:
+        source_run = source.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if not source_run:
+            raise RuntimeError(f"Run {run_code} not found in local database")
+        handoff = target.exec(
+            select(RunHandoff).where(RunHandoff.handoff_code == handoff_code)
+        ).first()
+        if not handoff or handoff.run_code != run_code:
+            raise RuntimeError(f"Handoff {handoff_code} for {run_code} not found in prod database")
+
+        handoff.state = "finalizing"
+        handoff.claimed_at = handoff.claimed_at or datetime.now(UTC)
+        target.add(handoff)
+        target.commit()
+
+        for model in REFERENCE_IMPORT_MODELS:
+            total = 0
+            for rows in _iter_model_chunks(source, model, chunk_size=chunk_size):
+                for row in rows:
+                    target.merge(hydrate_row(model, _dump_model(row)))
+                target.commit()
+                target.expunge_all()
+                total += len(rows)
+            imported_counts[model.__tablename__] = total
+
+        target.exec(ScrapedAsset.__table__.delete().where(ScrapedAsset.run_code == run_code))
+        target.exec(
+            RawCollectorData.__table__.delete().where(RawCollectorData.run_code == run_code)
+        )
+        target.exec(ScrapedPlace.__table__.delete().where(ScrapedPlace.run_code == run_code))
+        target.exec(DiscoveryCell.__table__.delete().where(DiscoveryCell.run_code == run_code))
+        target.commit()
+
+        existing_run = target.exec(
+            select(ScraperRun).where(ScraperRun.run_code == run_code)
+        ).first()
+        run_data = _dump_model(source_run)
+        if existing_run and existing_run.id is not None:
+            run_data["id"] = existing_run.id
+        else:
+            run_data.pop("id", None)
+        imported_run = hydrate_row(ScraperRun, run_data)
+        imported_run.cloud_run_execution = None
+        pending_assets = source.exec(
+            select(func.count(ScrapedAsset.id))
+            .where(ScrapedAsset.run_code == run_code)
+            .where(ScrapedAsset.status == "pending_upload")
+        ).one()
+        if (
+            pending_assets == 0
+            and imported_run.stage is None
+            and imported_run.status != "cancelled"
+        ):
+            imported_run.status = "completed"
+        target.merge(imported_run)
+        target.commit()
+        target.expunge_all()
+
+        for table_name, model in RUN_SCOPED_IMPORT_MODELS:
+            imported_counts[table_name] = _insert_run_scoped_chunks(
+                source,
+                target,
+                model,
+                run_code=run_code,
+                chunk_size=chunk_size,
+            )
+            _log_event(
+                "finalize_db_table_imported",
+                run_code=run_code,
+                table=table_name,
+                rows=imported_counts[table_name],
+            )
+
+        handoff = target.exec(
+            select(RunHandoff).where(RunHandoff.handoff_code == handoff_code)
+        ).first()
+        handoff.state = "completed"
+        handoff.finalized_at = datetime.now(UTC)
+        target.add(handoff)
+        target.commit()
+
+    return {
+        "run_code": run_code,
+        "handoff_code": handoff_code,
+        "status": "completed",
+        "pending_assets": int(pending_assets or 0),
+        "imported": imported_counts,
+    }
 
 
 def _fetch_sync_snapshot(client: httpx.Client, prod_url: str, run_code: str) -> dict:
@@ -939,6 +1101,37 @@ def finalize_watch(args: argparse.Namespace) -> int:
     return 3
 
 
+def finalize_db(args: argparse.Namespace) -> int:
+    result = _finalize_prod_from_local_db(
+        local_database_url=args.local_database_url,
+        prod_dsn=args.prod_dsn,
+        run_code=args.run_code,
+        handoff_code=args.handoff_code,
+        chunk_size=args.chunk_size,
+    )
+    print(json.dumps(result, indent=2, sort_keys=True))
+
+    if args.prod_url:
+        with httpx.Client(timeout=args.request_timeout) as client:
+            resp = client.post(
+                f"{args.prod_url.rstrip('/')}/api/v1/scraper/runs/{args.run_code}/sync"
+            )
+            resp.raise_for_status()
+            print(
+                json.dumps(
+                    {
+                        "event": "sync_triggered",
+                        "run_code": args.run_code,
+                        "response": resp.json(),
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+
+    return 0
+
+
 def finalize_bg(args: argparse.Namespace) -> int:
     work_dir = Path(args.work_dir or _default_work_dir()).resolve()
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -1447,6 +1640,23 @@ def main() -> int:
     watch_parser.add_argument("--timeout-seconds", type=int, default=6 * 60 * 60)
     watch_parser.add_argument("--request-timeout", type=float, default=120.0)
     watch_parser.set_defaults(func=finalize_watch)
+
+    finalize_db_parser = sub.add_parser(
+        "finalize-db",
+        help="Chunk-import a completed local handoff DB into production scraper DB",
+    )
+    finalize_db_parser.add_argument("--run-code", required=True)
+    finalize_db_parser.add_argument("--handoff-code", required=True)
+    finalize_db_parser.add_argument("--local-database-url", required=True)
+    finalize_db_parser.add_argument("--prod-dsn", required=True)
+    finalize_db_parser.add_argument("--chunk-size", type=int, default=1000)
+    finalize_db_parser.add_argument(
+        "--prod-url",
+        default=None,
+        help="Optional scraper API URL; when provided, trigger /sync after DB finalization",
+    )
+    finalize_db_parser.add_argument("--request-timeout", type=float, default=120.0)
+    finalize_db_parser.set_defaults(func=finalize_db)
 
     finalize_bg_parser = sub.add_parser(
         "finalize-bg",

@@ -91,6 +91,8 @@ Large interrupted scraper runs can now be exported, resumed locally, and finaliz
 - CLI: `cd soulstep-scraper-api && source .venv/bin/activate && python scripts/handoff.py ...`
 - Background ops: `start-local-bg` stores local run bundles/DB/logs under `soulstep-scraper-api/local-handoffs/`; `pause-local`/`resume-bg` safely stop and restart an existing local handoff DB; `finalize-bg` stores refreshed finalize bundles and catalog-sync logs there too; `monitor` checks completed local runs and starts sync jobs automatically.
 - Catalog sync: production finalization can use catalog-api’s detached direct DB sync job (`POST /api/v1/admin/sync-places/direct`) so bulk place data is read from the scraper DB and written directly to the catalog DB instead of uploaded through `/places/batch`.
+- Large finalize bundles are streamed to scraper-api; production nginx allows up to 256 MB on the scraper vhost so completed country runs do not fail with `413 Request Entity Too Large`.
+- Very large handoff DBs can use `scripts/handoff.py finalize-db` to chunk-import local rows directly into production scraper Postgres before triggering the normal sync path.
 - See [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md) for the concrete export/resume/finalize flow.
 
 ---

@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-06-16] — Large scraper handoff finalize uploads
+
+### Backend
+- Streamed scraper handoff finalize request bodies on both the CLI and FastAPI endpoint so large gzip bundles are not buffered in memory.
+- Raised only the scraper-api nginx body limit to `256M`, allowing completed local handoff bundles larger than 20 MB to finalize into production.
+- Added `scripts/handoff.py finalize-db`, an explicit operator path that chunk-imports a completed local handoff DB into production scraper Postgres when the VM scraper API cannot deserialize the refreshed bundle within its memory limit.
+
+### Docs
+- Documented the scraper handoff upload limit and `413` failure mode in the architecture, production, root README, and scraper README docs.
+
+### Tests
+- Added handoff CLI coverage for streaming finalize uploads and chunked DB-backed production finalization.
+
+---
+
 ## [2026-06-16] — Customer web head metadata ownership fix
 
 ### Frontend (web)

@@ -20,7 +20,9 @@ from scripts.handoff import (
     LOCAL_HANDOFF_MAX_REVIEW_IMAGES,
     LOCAL_HANDOFF_OVERPASS_CONCURRENCY,
     LOCAL_HANDOFF_OVERPASS_JITTER_MAX,
+    _finalize_prod_from_local_db,
     _import_bundle_into_db,
+    _post_finalize_bundle,
     _recent_log_has_errors,
     _refresh_finalize_bundle,
     _start_screen_runner,
@@ -37,6 +39,7 @@ from app.db.models import (
     DataLocation,
     GeoBoundary,
     RawCollectorData,
+    RunHandoff,
     ScrapedAsset,
     ScrapedPlace,
     ScraperRun,
@@ -95,6 +98,37 @@ def _bundle_upload(bundle: dict) -> tuple[str, bytes]:
             gz.write(payload)
         path = fh.name
     return path, open(path, "rb").read()
+
+
+def test_post_finalize_bundle_streams_file_content(tmp_path):
+    bundle_path = tmp_path / "run_test-hof_test.json.gz"
+    bundle_path.write_bytes(b"compressed-bundle")
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"status": "completed"}
+
+    class _Client:
+        def post(self, url, params, content, headers):
+            assert url.endswith("/api/v1/scraper/runs/run_test/handoff/finalize")
+            assert params == {"handoff_code": "hof_test"}
+            assert headers == {"Content-Type": "application/gzip"}
+            assert not isinstance(content, bytes)
+            assert content.read() == b"compressed-bundle"
+            return _Response()
+
+    result = _post_finalize_bundle(
+        client=_Client(),
+        prod_url="https://scraper-api.soul-step.org",
+        bundle_path=bundle_path,
+        run_code="run_test",
+        handoff_code="hof_test",
+    )
+
+    assert result == {"status": "completed"}
 
 
 def test_local_handoff_browser_defaults_stay_aligned():
@@ -304,6 +338,112 @@ def test_refresh_finalize_bundle_exports_current_local_db_state(tmp_path, db_ses
     assert refreshed_run["status"] == "completed"
     assert refreshed_run["stage"] is None
     assert refreshed_run["processed_items"] == 42
+
+
+def test_finalize_prod_from_local_db_chunk_imports_completed_run(tmp_path):
+    local_url = f"sqlite:///{tmp_path / 'local.db'}"
+    prod_url = f"sqlite:///{tmp_path / 'prod.db'}"
+    local_engine = create_engine(local_url)
+    prod_engine = create_engine(prod_url)
+    SQLModel.metadata.create_all(local_engine)
+    SQLModel.metadata.create_all(prod_engine)
+
+    with Session(local_engine) as session:
+        loc = DataLocation(code="loc_test", name="Test", config={"country": "India"})
+        session.add(loc)
+        session.add(
+            ScraperRun(
+                run_code="run_chunk",
+                location_code=loc.code,
+                status="completed",
+                stage=None,
+                total_items=1,
+                processed_items=1,
+            )
+        )
+        session.add(
+            ScrapedPlace(
+                run_code="run_chunk",
+                place_code="gplc_new",
+                name="New Place",
+                raw_data={"name": "New Place"},
+                detail_fetch_status="success",
+                sync_status="synced",
+            )
+        )
+        session.add(
+            RawCollectorData(
+                run_code="run_chunk",
+                place_code="gplc_new",
+                collector_name="gmaps",
+                raw_response={"name": "New Place"},
+            )
+        )
+        session.add(
+            ScrapedAsset(
+                run_code="run_chunk",
+                place_code="gplc_new",
+                asset_kind="place_image",
+                source_url="https://example.com/image.jpg",
+                status="uploaded",
+            )
+        )
+        session.commit()
+
+    with Session(prod_engine) as session:
+        loc = DataLocation(code="loc_test", name="Test", config={"country": "India"})
+        session.add(loc)
+        session.add(
+            ScraperRun(
+                run_code="run_chunk",
+                location_code=loc.code,
+                status="interrupted",
+                stage="detail_fetch",
+                total_items=1,
+                processed_items=0,
+            )
+        )
+        session.add(RunHandoff(handoff_code="hof_chunk", run_code="run_chunk", state="exported"))
+        session.add(
+            ScrapedPlace(
+                run_code="run_chunk",
+                place_code="gplc_old",
+                name="Old Place",
+                raw_data={"name": "Old Place"},
+            )
+        )
+        session.commit()
+
+    result = _finalize_prod_from_local_db(
+        local_database_url=local_url,
+        prod_dsn=prod_url,
+        run_code="run_chunk",
+        handoff_code="hof_chunk",
+        chunk_size=1,
+    )
+
+    assert result["status"] == "completed"
+    assert result["imported"]["scraped_places"] == 1
+
+    with Session(prod_engine) as session:
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == "run_chunk")).first()
+        handoff = session.exec(select(RunHandoff).where(RunHandoff.run_code == "run_chunk")).first()
+        places = session.exec(
+            select(ScrapedPlace).where(ScrapedPlace.run_code == "run_chunk")
+        ).all()
+        raw_rows = session.exec(
+            select(RawCollectorData).where(RawCollectorData.run_code == "run_chunk")
+        ).all()
+        assets = session.exec(
+            select(ScrapedAsset).where(ScrapedAsset.run_code == "run_chunk")
+        ).all()
+
+    assert run.status == "completed"
+    assert run.stage is None
+    assert handoff.state == "completed"
+    assert [place.place_code for place in places] == ["gplc_new"]
+    assert len(raw_rows) == 1
+    assert len(assets) == 1
 
 
 def test_screen_runner_uses_run_scoped_db_and_log(tmp_path):

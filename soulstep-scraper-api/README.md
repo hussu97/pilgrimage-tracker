@@ -125,7 +125,10 @@ Bundle finalize uploads raw `application/gzip` bytes to
 `POST /api/v1/scraper/runs/{run_code}/handoff/finalize?handoff_code=...`.
 When `--local-database-url` is passed, the CLI first rebuilds a fresh finalize
 bundle from the current local DB so production receives the completed local rows,
-not the original export snapshot.
+not the original export snapshot. Large completed runs can produce finalize
+bundles well above 20 MB, so the production nginx scraper vhost allows request
+bodies up to 256 MB; a `413 Request Entity Too Large` means that proxy limit is
+missing or stale.
 
 In production, `SCRAPER_DIRECT_CATALOG_SYNC=true` makes finalize/sync trigger
 catalog-api’s direct DB job with a small control request. The bulk place data is
@@ -133,6 +136,22 @@ read by a detached catalog-api CLI worker from the production scraper DB,
 formatted through the same shared ingest logic as the `/places/batch` API, and
 written directly to the catalog DB. `scripts/handoff.py monitor` and `finalize-watch` include
 `direct_catalog_*` counters from the production run/activity responses.
+
+For very large local DBs where the VM scraper API cannot deserialize the
+refreshed gzip bundle inside its memory limit, use the explicit DB-backed
+operator path instead:
+
+```bash
+python scripts/handoff.py finalize-db \
+  --run-code run_abc123 \
+  --handoff-code hof_abc123 \
+  --local-database-url sqlite:///local-handoffs/run_abc123.db \
+  --prod-dsn postgresql://... \
+  --prod-url https://scraper-api.soul-step.org
+```
+
+`finalize-db` replaces the production scraper run tables in chunks, marks the
+handoff completed, then optionally triggers the normal scraper `/sync` endpoint.
 
 For operator status checks, use `status-table`. It prints the same table used
 for local run monitoring: run code, active stage, screen activity, stage

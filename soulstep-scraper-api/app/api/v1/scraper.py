@@ -321,8 +321,8 @@ async def finalize_run_handoff(
     handoff_code: str = Query(...),
 ):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".json.gz") as fh:
-        payload = await request.body()
-        fh.write(payload)
+        async for chunk in request.stream():
+            fh.write(chunk)
         bundle_path = Path(fh.name)
 
     try:
