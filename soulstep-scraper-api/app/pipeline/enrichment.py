@@ -31,6 +31,7 @@ from app.pipeline.place_quality import (
     is_name_specific_enough,
     passes_gate,
 )
+from app.utils.coordinates import sanitize_coordinate_pair
 
 logger = get_logger(__name__)
 
@@ -320,8 +321,9 @@ async def _enrich_place(
     session.add(place)
     session.commit()
 
-    lat = place.lat or raw_data.get("lat", 0)
-    lng = place.lng or raw_data.get("lng", 0)
+    lat, lng = sanitize_coordinate_pair(place.lat, place.lng)
+    if lat is None or lng is None:
+        lat, lng = sanitize_coordinate_pair(raw_data.get("lat"), raw_data.get("lng"))
 
     accumulated: dict = {
         "tags": {},
@@ -330,40 +332,48 @@ async def _enrich_place(
 
     results: dict[str, CollectorResult] = {}
 
-    for phase in _group_into_phases(collectors):
-        if len(phase) == 1:
-            # Single collector in this phase — run sequentially
-            collector = phase[0]
-            result = await _run_collector_safe(
-                collector, place.place_code, lat, lng, name, accumulated
+    if lat is None or lng is None:
+        for collector in collectors:
+            results[collector.name] = CollectorResult(
+                collector_name=collector.name,
+                status="skipped",
+                error_message="No usable coordinates",
             )
-            results[collector.name] = result
-            if result.status == "success" and result.tags:
-                accumulated["tags"].update(result.tags)
-        else:
-            # Multiple independent collectors — run concurrently
-            phase_results_list = await asyncio.gather(
-                *[
-                    _run_collector_safe(c, place.place_code, lat, lng, name, accumulated)
-                    for c in phase
-                ],
-                return_exceptions=True,
-            )
-            phase_results: dict[str, CollectorResult] = {}
-            for c, r in zip(phase, phase_results_list, strict=False):
-                if isinstance(r, BaseException):
-                    phase_results[c.name] = CollectorResult(
-                        collector_name=c.name,
-                        status="failed",
-                        error_message=str(r),
-                    )
-                else:
-                    phase_results[c.name] = r
-            results.update(phase_results)
-            # Propagate any tags emitted by this phase
-            for result in phase_results.values():
+    else:
+        for phase in _group_into_phases(collectors):
+            if len(phase) == 1:
+                # Single collector in this phase — run sequentially
+                collector = phase[0]
+                result = await _run_collector_safe(
+                    collector, place.place_code, lat, lng, name, accumulated
+                )
+                results[collector.name] = result
                 if result.status == "success" and result.tags:
                     accumulated["tags"].update(result.tags)
+            else:
+                # Multiple independent collectors — run concurrently
+                phase_results_list = await asyncio.gather(
+                    *[
+                        _run_collector_safe(c, place.place_code, lat, lng, name, accumulated)
+                        for c in phase
+                    ],
+                    return_exceptions=True,
+                )
+                phase_results: dict[str, CollectorResult] = {}
+                for c, r in zip(phase, phase_results_list, strict=False):
+                    if isinstance(r, BaseException):
+                        phase_results[c.name] = CollectorResult(
+                            collector_name=c.name,
+                            status="failed",
+                            error_message=str(r),
+                        )
+                    else:
+                        phase_results[c.name] = r
+                results.update(phase_results)
+                # Propagate any tags emitted by this phase
+                for result in phase_results.values():
+                    if result.status == "success" and result.tags:
+                        accumulated["tags"].update(result.tags)
 
     # Batch-write all RawCollectorData records at once
     for coll_name, result in results.items():
@@ -385,8 +395,10 @@ async def _enrich_place(
     place.enrichment_status = "complete"
 
     # Sync promoted columns from the merged data so they reflect enrichment
-    place.lat = _safe_float(merged.get("lat")) or place.lat
-    place.lng = _safe_float(merged.get("lng")) or place.lng
+    merged_lat, merged_lng = sanitize_coordinate_pair(merged.get("lat"), merged.get("lng"))
+    existing_lat, existing_lng = sanitize_coordinate_pair(place.lat, place.lng)
+    place.lat = merged_lat if merged_lat is not None else existing_lat
+    place.lng = merged_lng if merged_lng is not None else existing_lng
     place.rating = _safe_float(merged.get("rating"))
     place.user_rating_count = _safe_int(merged.get("user_rating_count"))
     place.google_place_id = merged.get("google_place_id") or place.google_place_id

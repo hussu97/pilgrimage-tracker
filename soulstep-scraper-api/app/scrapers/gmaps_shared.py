@@ -34,6 +34,7 @@ from app.services.scraped_assets import (
     drain_scraped_assets,
     preserve_source_media_fields,
 )
+from app.utils.coordinates import sanitize_coordinate_pair
 
 logger = get_logger(__name__)
 
@@ -309,6 +310,9 @@ def _build_flush_objects(
         quality_score = score_place_quality(details)
         quality_gate = get_quality_gate(quality_score)
         normalized_details = preserve_source_media_fields(details)
+        lat, lng = sanitize_coordinate_pair(
+            normalized_details.get("lat"), normalized_details.get("lng")
+        )
 
         scraped_place = ScrapedPlace(
             run_code=run_code,
@@ -321,8 +325,8 @@ def _build_flush_objects(
             city=normalized_details.get("city"),
             state=normalized_details.get("state"),
             country=normalized_details.get("country"),
-            lat=_safe_float(normalized_details.get("lat")),
-            lng=_safe_float(normalized_details.get("lng")),
+            lat=lat,
+            lng=lng,
             rating=_safe_float(normalized_details.get("rating")),
             user_rating_count=_safe_int(normalized_details.get("user_rating_count")),
             google_place_id=normalized_details.get("google_place_id"),

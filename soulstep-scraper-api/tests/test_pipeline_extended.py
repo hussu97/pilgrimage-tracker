@@ -521,7 +521,7 @@ class TestEnrichPlace:
                 run_code="run_err",
                 place_code="gplc_err1",
                 name="Error Mosque",
-                raw_data={"lat": 0.0, "lng": 0.0},
+                raw_data={"lat": 25.2, "lng": 55.3},
             )
             session.add(place)
             session.commit()
@@ -539,6 +539,47 @@ class TestEnrichPlace:
         assert len(raw_records) == 1
         assert raw_records[0].status == "failed"
         assert "Collector boom!" in raw_records[0].error_message
+
+    async def test_enrich_place_skips_collectors_without_usable_coordinates(self, pipeline_engine):
+        """Missing or placeholder coordinates should not run coordinate-dependent collectors."""
+        from sqlmodel import select
+
+        from app.db.models import DataLocation, RawCollectorData, ScrapedPlace, ScraperRun
+        from app.pipeline.enrichment import _enrich_place
+
+        with Session(pipeline_engine) as session:
+            loc = DataLocation(code="loc_skip_coords", name="Skip Coords", config={})
+            session.add(loc)
+            run = ScraperRun(run_code="run_skip_coords", location_code="loc_skip_coords")
+            session.add(run)
+            place = ScrapedPlace(
+                run_code="run_skip_coords",
+                place_code="gplc_skip_coords",
+                name="Coordinate Missing Mosque",
+                lat=0.0,
+                lng=0.0,
+                raw_data={"lat": 0.0, "lng": 0.0},
+            )
+            session.add(place)
+            session.commit()
+
+            skipped_collector = MagicMock()
+            skipped_collector.name = "coordcollector"
+            skipped_collector.collect = AsyncMock()
+
+            await _enrich_place(place, "run_skip_coords", [skipped_collector], session)
+
+            raw_records = session.exec(
+                select(RawCollectorData).where(RawCollectorData.place_code == "gplc_skip_coords")
+            ).all()
+            session.refresh(place)
+
+        skipped_collector.collect.assert_not_awaited()
+        assert len(raw_records) == 1
+        assert raw_records[0].status == "skipped"
+        assert raw_records[0].error_message == "No usable coordinates"
+        assert place.lat is None
+        assert place.lng is None
 
     async def test_enrich_place_tags_propagation(self, pipeline_engine):
         """Tags from OSM (Phase 0) must propagate to Wikipedia (Phase 1)."""

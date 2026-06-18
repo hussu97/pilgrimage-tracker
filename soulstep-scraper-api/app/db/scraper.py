@@ -14,6 +14,7 @@ from app.pipeline.place_quality import GATE_SYNC, is_name_specific_enough, passe
 from app.scrapers.base import AtomicCounter
 from app.scrapers.gmaps_browser import run_gmaps_scraper_browser as run_gmaps_scraper
 from app.scrapers.gmaps_shared import FailFastError
+from app.utils.coordinates import sanitize_coordinate_pair
 
 logger = get_logger(__name__)
 
@@ -697,14 +698,17 @@ def build_sync_payloads(places: list[ScrapedPlace]) -> list[dict]:
     payloads = []
     for p in places:
         data = p.raw_data or {}
+        lat, lng = sanitize_coordinate_pair(p.lat, p.lng)
+        if lat is None or lng is None:
+            lat, lng = sanitize_coordinate_pair(data.get("lat"), data.get("lng"))
         payloads.append(
             {
                 "place_code": p.place_code,
                 "name": p.name,
                 "religion": _sanitize_religion(p.religion),
                 "place_type": p.place_type,
-                "lat": p.lat,
-                "lng": p.lng,
+                "lat": lat,
+                "lng": lng,
                 "address": p.address,
                 "opening_hours": data.get("opening_hours"),
                 "utc_offset_minutes": data.get("utc_offset_minutes"),

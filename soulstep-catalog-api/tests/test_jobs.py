@@ -139,10 +139,10 @@ class TestIsNameSpecificEnough:
 
 
 class TestBuildPlaceCreate:
-    def _fn(self, place_code, name, raw_data):
+    def _fn(self, place_code, name, raw_data, row_lat=None, row_lng=None):
         from app.jobs.sync_places import _build_place_create
 
-        return _build_place_create(place_code, name, raw_data)
+        return _build_place_create(place_code, name, raw_data, row_lat, row_lng)
 
     def _raw(self, **overrides):
         base = {
@@ -174,10 +174,33 @@ class TestBuildPlaceCreate:
         assert pc.translations is not None
         assert pc.translations.name == {"ar": "مسجد"}
 
-    def test_returns_none_on_invalid_lat(self):
+    def test_invalid_lat_is_treated_as_missing_coordinates(self):
         raw = self._raw(lat="not-a-float")
         pc = self._fn("plc_abc", "Test Mosque", raw)
-        assert pc is None
+        assert pc is not None
+        assert pc.lat is None
+        assert pc.lng is None
+
+    def test_zero_zero_coordinates_are_treated_as_missing(self):
+        raw = self._raw(lat=0, lng=0)
+        pc = self._fn("plc_abc", "Test Mosque", raw)
+        assert pc is not None
+        assert pc.lat is None
+        assert pc.lng is None
+
+    def test_promoted_coordinates_preferred_over_stale_raw_json(self):
+        raw = self._raw(lat=0, lng=0)
+        pc = self._fn("plc_abc", "Test Mosque", raw, row_lat=25.2, row_lng=55.3)
+        assert pc is not None
+        assert pc.lat == 25.2
+        assert pc.lng == 55.3
+
+    def test_stale_zero_promoted_coordinates_can_fall_back_to_raw_json(self):
+        raw = self._raw(lat=25.2, lng=55.3)
+        pc = self._fn("plc_abc", "Test Mosque", raw, row_lat=0, row_lng=0)
+        assert pc is not None
+        assert pc.lat == 25.2
+        assert pc.lng == 55.3
 
     def test_unknown_religion_defaults_to_all(self):
         raw = self._raw(religion="jainism")
@@ -210,6 +233,8 @@ class TestSyncPlacesMain:
                 "address": "123 St",
             },
             0.9,  # quality_score
+            25.2,
+            55.3,
         )
 
         mock_conn = MagicMock()
@@ -240,6 +265,8 @@ class TestSyncPlacesMain:
             "Grand Mosque",
             {"religion": "islam", "place_type": "mosque", "lat": 25.2, "lng": 55.3, "address": "x"},
             0.9,
+            25.2,
+            55.3,
         )
 
         mock_conn = MagicMock()
@@ -273,6 +300,8 @@ class TestSyncPlacesMain:
             "Grand Mosque",
             {"religion": "islam", "place_type": "mosque", "lat": 25.2, "lng": 55.3, "address": "x"},
             0.5,
+            25.2,
+            55.3,
         )
 
         mock_conn = MagicMock()
@@ -551,8 +580,12 @@ class TestDirectSyncRunScoped:
             )
 
         mock_chunk.assert_called_once()
-        synced_codes = [place.place_code for place in mock_chunk.call_args.args[0]]
+        synced_places = mock_chunk.call_args.args[0]
+        synced_codes = [place.place_code for place in synced_places]
         assert synced_codes == ["plc_in", "plc_out", "plc_raw_in", "plc_zero"]
+        zero_place = next(place for place in synced_places if place.place_code == "plc_zero")
+        assert zero_place.lat == 25.2
+        assert zero_place.lng == 55.3
         assert summary.scanned == 6
         assert summary.synced == 4
         assert summary.skipped_quality == 1

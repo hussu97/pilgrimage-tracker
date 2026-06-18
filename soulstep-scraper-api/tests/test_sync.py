@@ -14,6 +14,7 @@ from app.db.scraper import (
     _sanitize_religion,
     _sanitize_reviews,
     _trigger_seo_generation_async,
+    build_sync_payloads,
     sync_run_to_server,
 )
 
@@ -131,6 +132,48 @@ class TestSanitizeReviews:
         assert len(result) == 2
         assert result[0]["rating"] == 5
         assert result[1]["rating"] == 3
+
+
+class TestBuildSyncPayloads:
+    def test_zero_zero_coordinates_are_not_forwarded(self):
+        place = ScrapedPlace(
+            run_code="run_coords",
+            place_code="plc_zero",
+            name="Zero Mosque",
+            lat=0.0,
+            lng=0.0,
+            raw_data={
+                "religion": "islam",
+                "place_type": "mosque",
+                "lat": 0.0,
+                "lng": 0.0,
+                "address": "Null Island",
+            },
+        )
+
+        payload = build_sync_payloads([place])[0]
+
+        assert payload["lat"] is None
+        assert payload["lng"] is None
+
+    def test_raw_coordinates_backfill_missing_promoted_columns(self):
+        place = ScrapedPlace(
+            run_code="run_coords",
+            place_code="plc_raw",
+            name="Raw Mosque",
+            raw_data={
+                "religion": "islam",
+                "place_type": "mosque",
+                "lat": "25.2",
+                "lng": "55.3",
+                "address": "Dubai",
+            },
+        )
+
+        payload = build_sync_payloads([place])[0]
+
+        assert payload["lat"] == 25.2
+        assert payload["lng"] == 55.3
 
 
 # ── sync_run_to_server ────────────────────────────────────────────────────────

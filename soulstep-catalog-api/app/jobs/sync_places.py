@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import os
 import sys
 import time
@@ -148,9 +149,40 @@ def _coerce_raw_data(raw_data: Any) -> dict:
     return {}
 
 
-def _build_place_create(place_code: str, name: str, raw_data: dict) -> PlaceCreate | None:
+def _coerce_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if math.isfinite(parsed) else None
+
+
+def _sanitize_coordinate_pair(lat: Any, lng: Any) -> tuple[float | None, float | None]:
+    parsed_lat = _coerce_float(lat)
+    parsed_lng = _coerce_float(lng)
+    if parsed_lat is None or parsed_lng is None:
+        return None, None
+    if not (-90 <= parsed_lat <= 90 and -180 <= parsed_lng <= 180):
+        return None, None
+    if parsed_lat == 0 and parsed_lng == 0:
+        return None, None
+    return parsed_lat, parsed_lng
+
+
+def _build_place_create(
+    place_code: str,
+    name: str,
+    raw_data: dict,
+    row_lat: Any = None,
+    row_lng: Any = None,
+) -> PlaceCreate | None:
     """Build a PlaceCreate from a ScrapedPlace row. Returns None if data is invalid."""
     data = raw_data
+    lat, lng = _sanitize_coordinate_pair(row_lat, row_lng)
+    if lat is None or lng is None:
+        lat, lng = _sanitize_coordinate_pair(data.get("lat"), data.get("lng"))
     translations_raw = data.get("translations")
     translations = None
     if isinstance(translations_raw, dict):
@@ -166,8 +198,8 @@ def _build_place_create(place_code: str, name: str, raw_data: dict) -> PlaceCrea
             name=name or data.get("name", ""),
             religion=_sanitize_religion(data.get("religion")),
             place_type=data.get("place_type", "unknown"),
-            lat=float(data.get("lat", 0)),
-            lng=float(data.get("lng", 0)),
+            lat=lat,
+            lng=lng,
             address=data.get("address", ""),
             opening_hours=data.get("opening_hours"),
             utc_offset_minutes=data.get("utc_offset_minutes"),
@@ -475,7 +507,8 @@ def _iter_scraped_rows(scraper_engine, run_code: str | None, failed_only: bool):
         clauses.append("sync_status = 'failed'")
     where = " WHERE " + " AND ".join(clauses) if clauses else ""
     query = text(
-        f"SELECT place_code, name, raw_data, quality_score FROM scrapedplace{where} ORDER BY place_code"
+        f"SELECT place_code, name, raw_data, quality_score, lat, lng "
+        f"FROM scrapedplace{where} ORDER BY place_code"
     )
     with scraper_engine.connect() as conn:
         if scraper_engine.dialect.name == "sqlite":
@@ -585,7 +618,7 @@ def sync_places_for_run(
 
     try:
         for row in _iter_scraped_rows(scraper_engine, run_code, failed_only):
-            place_code, name, raw_data, quality_score = tuple(row)
+            place_code, name, raw_data, quality_score, row_lat, row_lng = tuple(row)
             summary.scanned += 1
             raw_payload = _coerce_raw_data(raw_data)
             if quality_score is not None and float(quality_score) < _QUALITY_GATE:
@@ -599,7 +632,7 @@ def sync_places_for_run(
                 maybe_publish_progress()
                 continue
 
-            place = _build_place_create(place_code, name, raw_payload)
+            place = _build_place_create(place_code, name, raw_payload, row_lat, row_lng)
             if place is None:
                 summary.skipped_build += 1
                 summary.failed += 1

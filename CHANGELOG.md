@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-06-18] — Scraper coordinate fallback fix
+
+### Backend
+- Stopped Google Maps browser scraping from fabricating `0,0` coordinates when Maps detail pages do not expose a real lat/lng.
+- Sanitized scraper enrichment and sync payloads so placeholder, invalid, or out-of-range coordinates are treated as missing before reaching catalog-api.
+- Hardened the catalog direct scraper-sync job to prefer promoted scraper coordinates and null out placeholder `0,0` values from historical raw JSON.
+
+### Tests
+- Added regression coverage for missing/browser placeholder coordinates and both scraper-to-catalog sync paths.
+
+---
+
 ## [2026-06-18] — Catalog place-detail latency hardening
 
 ### Backend

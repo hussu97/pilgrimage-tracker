@@ -13,6 +13,7 @@ from sqlmodel import Session, func, select
 from app.config import settings
 from app.db.models import ScrapedAsset, ScrapedPlace, ScraperRun
 from app.logger import get_logger
+from app.utils.coordinates import sanitize_coordinate_pair
 
 logger = get_logger(__name__)
 
@@ -188,8 +189,7 @@ async def _recapture_asset(asset_id: int, engine) -> bool:
         ).first()
         if not place:
             return False
-        lat = place.lat or 0.0
-        lng = place.lng or 0.0
+        lat, lng = sanitize_coordinate_pair(place.lat, place.lng)
         place_name = _place_resource_name(asset.place_code)
 
     collector = BrowserGmapsCollector(session_lat=lat, session_lng=lng)

@@ -22,6 +22,7 @@ from app.scrapers.gmaps_shared import (
     normalize_to_24h,
 )
 from app.services.browser_pool import BlockedError, CircuitOpenError, get_maps_pool
+from app.utils.coordinates import sanitize_coordinate_pair
 
 logger = get_logger(__name__)
 
@@ -896,8 +897,7 @@ class BrowserGmapsCollector(BaseCollector):
         # Address and location
         address = clean_address(response.get("address") or "")
         city, state, country = _parse_address_components(address)
-        lat = response.get("lat") or 0.0
-        lng = response.get("lng") or 0.0
+        lat, lng = sanitize_coordinate_pair(response.get("lat"), response.get("lng"))
 
         description = (
             f"A {place_type_name} located in {address}." if address else f"A {place_type_name}."
@@ -908,7 +908,9 @@ class BrowserGmapsCollector(BaseCollector):
         opening_hours = _parse_hours_rows(weekday_rows)
 
         # UTC offset via timezonefinder
-        utc_offset_minutes = _get_utc_offset(lat, lng)
+        utc_offset_minutes = (
+            _get_utc_offset(lat, lng) if lat is not None and lng is not None else None
+        )
 
         # Attributes
         attributes: list[dict[str, Any]] = []

@@ -278,6 +278,38 @@ class TestBuildPlaceData:
         assert result["source"] == "gmaps_browser"
         assert result["has_editorial"] is False
 
+    def test_missing_coordinates_remain_null(self):
+        response = dict(self.sample_response)
+        response.pop("lat")
+        response.pop("lng")
+        result = self.collector.build_place_data(
+            response,
+            "gplc_ChIJabc123",
+            "",
+            None,
+            type_map={"mosque": "mosque"},
+            religion_type_map={"mosque": "islam"},
+        )
+        assert result["lat"] is None
+        assert result["lng"] is None
+        assert result["utc_offset_minutes"] is None
+
+    def test_zero_zero_coordinates_are_treated_as_missing(self):
+        response = dict(self.sample_response)
+        response["lat"] = 0.0
+        response["lng"] = 0.0
+        result = self.collector.build_place_data(
+            response,
+            "gplc_ChIJabc123",
+            "",
+            None,
+            type_map={"mosque": "mosque"},
+            religion_type_map={"mosque": "islam"},
+        )
+        assert result["lat"] is None
+        assert result["lng"] is None
+        assert result["utc_offset_minutes"] is None
+
     def test_canonical_place_id_upgrades_code(self):
         result = self.collector.build_place_data(
             self.sample_response,
