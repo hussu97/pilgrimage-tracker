@@ -8,6 +8,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Backend
 - Skipped nearby-place fanout for placeholder `0,0` coordinates so bad imported location data cannot overload catalog place detail responses.
+- Pinned the Prometheus FastAPI instrumentator version used by catalog-api so CI and production do not pick up incompatible route instrumentation changes.
 
 ### Frontend (web)
 - Changed server-side place metadata fetches to request `include_related=false`, reducing catalog-api load from SEO/prerender traffic.
