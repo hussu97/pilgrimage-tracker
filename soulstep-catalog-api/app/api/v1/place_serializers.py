@@ -17,7 +17,7 @@ from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db.enums import OpenStatus
 from app.db.models import Country, Place, PlaceSEO
-from app.db.places import _haversine_km, _is_open_now_from_hours
+from app.db.places import _haversine_km, _is_open_now_from_hours, has_usable_coordinates
 from app.services.place_specifications import build_specifications
 from app.services.place_timings import build_timings
 from app.services.timezone_utils import get_today_name
@@ -248,7 +248,7 @@ def serialize_place_detail(
         out["country_iso_code"] = None
 
     if include_related:
-        if place.lat is not None and place.lng is not None:
+        if has_usable_coordinates(place.lat, place.lng):
             nearby_with_dist = places_db.get_nearby_places(
                 place.lat,
                 place.lng,

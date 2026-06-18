@@ -58,7 +58,10 @@ export interface PlaceForMeta {
 }
 
 export async function fetchPlace(placeCode: string): Promise<PlaceForMeta> {
-  return serverFetch<PlaceForMeta>(`/api/v1/places/${encodeURIComponent(placeCode)}`, 3600);
+  return serverFetch<PlaceForMeta>(
+    `/api/v1/places/${encodeURIComponent(placeCode)}?include_related=false`,
+    3600,
+  );
 }
 
 // ── Cities ────────────────────────────────────────────────────────────────────

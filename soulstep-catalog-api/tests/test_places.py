@@ -662,6 +662,29 @@ class TestGetNearbyPlaces:
             results = places_db.get_nearby_places(51.5074, -0.1278, 5.0, "plc_nb_iso01", session)
             assert results == []
 
+    def test_zero_zero_coordinates_are_not_used_for_nearby(self, client, test_engine):
+        """Placeholder 0,0 coordinates should not trigger nearby-place fanout."""
+        from sqlmodel import Session
+
+        from app.db import places as places_db
+        from app.db.enums import Religion
+
+        with Session(test_engine) as session:
+            for idx in range(3):
+                places_db.create_place(
+                    f"plc_nb_zero{idx}",
+                    session,
+                    f"Zero Place {idx}",
+                    Religion.ISLAM,
+                    "mosque",
+                    lat=0.0,
+                    lng=0.0,
+                    address="Unknown",
+                )
+
+            results = places_db.get_nearby_places(0.0, 0.0, 10.0, "plc_nb_zero0", session)
+            assert results == []
+
 
 # ── count_places_visited_bulk ──────────────────────────────────────────────────
 

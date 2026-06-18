@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-06-18] — Catalog place-detail latency hardening
+
+### Backend
+- Skipped nearby-place fanout for placeholder `0,0` coordinates so bad imported location data cannot overload catalog place detail responses.
+
+### Frontend (web)
+- Changed server-side place metadata fetches to request `include_related=false`, reducing catalog-api load from SEO/prerender traffic.
+
+### Tests
+- Added regression coverage for `0,0` nearby-place lookups and customer place-detail API query behavior.
+
+---
+
 ## [2026-06-16] — Large scraper handoff finalize uploads
 
 ### Backend

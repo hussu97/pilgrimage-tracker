@@ -102,6 +102,13 @@ describe('setApiLocale() + getPlace()', () => {
     const url = vi.mocked(fetch).mock.calls[0][0] as string;
     expect(url).toContain('lang=ar');
   });
+
+  it('does not disable related places for the interactive place page', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(mockOkResponse({ place_code: 'plc_001', name: 'Test' }));
+    await getPlace('plc_001');
+    const url = vi.mocked(fetch).mock.calls[0][0] as string;
+    expect(url).not.toContain('include_related=false');
+  });
 });
 
 // ── setApiLocale + getPlaceReviews ────────────────────────────────────────────

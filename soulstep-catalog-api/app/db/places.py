@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlmodel import Session, or_, select
+from sqlmodel import Session, and_, not_, or_, select
 
 from app.db import place_attributes as attr_db
 from app.db import reviews as reviews_db
@@ -202,6 +202,20 @@ def _haversine_km(
     return R * c
 
 
+def has_usable_coordinates(lat: float | None, lng: float | None) -> bool:
+    """Return true for coordinates safe to use in location queries.
+
+    Treat 0,0 as missing data for SoulStep places. Large scraper imports can
+    carry placeholder zero coordinates, and using them as real locations makes
+    nearby-place lookups fan out across the placeholder cluster.
+    """
+    if lat is None or lng is None:
+        return False
+    if lat == 0 and lng == 0:
+        return False
+    return -90 <= lat <= 90 and -180 <= lng <= 180
+
+
 def get_nearby_places(
     lat: float,
     lng: float,
@@ -214,6 +228,9 @@ def get_nearby_places(
 
     Uses a bounding-box SQL filter first, then Haversine for precision.
     """
+    if not has_usable_coordinates(lat, lng):
+        return []
+
     delta_lat = radius_km / 111.0
     delta_lng = radius_km / (111.0 * math.cos(math.radians(lat)))
     min_lat = lat - delta_lat
@@ -226,6 +243,7 @@ def get_nearby_places(
         Place.lat <= max_lat,
         Place.lng >= min_lng,
         Place.lng <= max_lng,
+        not_(and_(Place.lat == 0, Place.lng == 0)),
         Place.place_code != exclude_code,
     )
     candidates = session.exec(stmt).all()
