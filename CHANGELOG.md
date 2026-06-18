@@ -10,6 +10,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - Skipped nearby-place fanout for placeholder `0,0` coordinates so bad imported location data cannot overload catalog place detail responses.
 - Pinned the Prometheus FastAPI instrumentator version used by catalog-api so CI and production do not pick up incompatible route instrumentation changes.
 - Gated catalog-api Prometheus instrumentation behind `ENABLE_PROMETHEUS=false` by default so optional metrics middleware cannot break request handling.
+- Raised catalog-api Starlette and Prometheus instrumentation requirements to patched Starlette 1.x-compatible versions so deployment vulnerability scans pass.
 
 ### Frontend (web)
 - Changed server-side place metadata fetches to request `include_related=false`, reducing catalog-api load from SEO/prerender traffic.
