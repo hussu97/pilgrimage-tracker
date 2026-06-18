@@ -54,6 +54,7 @@ jobs:
           GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}
           GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+          ENABLE_PROMETHEUS=${{ secrets.ENABLE_PROMETHEUS }}
           BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
           SCRAPER_GEMINI_API_KEY=${{ secrets.SCRAPER_GEMINI_API_KEY }}
           SCRAPER_FOURSQUARE_API_KEY=${{ secrets.SCRAPER_FOURSQUARE_API_KEY }}

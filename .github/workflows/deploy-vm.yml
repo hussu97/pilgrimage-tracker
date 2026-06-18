@@ -245,6 +245,7 @@ jobs:
           GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+          ENABLE_PROMETHEUS=${{ secrets.ENABLE_PROMETHEUS }}
           BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
           # ── Scraper-api: API keys ─────────────────────────────────────────────
           SCRAPER_GEMINI_API_KEY=${{ secrets.SCRAPER_GEMINI_API_KEY }}

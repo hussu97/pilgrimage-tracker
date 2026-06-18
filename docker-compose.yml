@@ -37,6 +37,7 @@ services:
       ADS_SERVER: ${ADS_SERVER:-adsense}
       ADSENSE_PUBLISHER_ID: ${ADSENSE_PUBLISHER_ID:-}
       AD_SLOTS_JSON: ${AD_SLOTS_JSON:-}
+      ENABLE_PROMETHEUS: ${ENABLE_PROMETHEUS:-false}
     ports:
       - "${API_PORT:-3000}:3000"
     depends_on:

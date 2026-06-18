@@ -426,13 +426,17 @@ app.include_router(sitemap_module.router)
 app.include_router(seo_static_module.router)
 app.include_router(feed_module.router)
 
-# Prometheus metrics — exposes GET /metrics (excluded from OpenAPI schema)
-try:
-    from prometheus_fastapi_instrumentator import Instrumentator
+# Prometheus metrics — optional because route instrumentation must never break
+# request handling when FastAPI/Starlette internals change.
+if os.getenv("ENABLE_PROMETHEUS", "false").lower() in {"1", "true", "yes", "on"}:
+    try:
+        from prometheus_fastapi_instrumentator import Instrumentator
 
-    Instrumentator().instrument(app).expose(app, include_in_schema=False)
-except ImportError:
-    logger.warning("prometheus-fastapi-instrumentator not installed; /metrics endpoint disabled")
+        Instrumentator().instrument(app).expose(app, include_in_schema=False)
+    except Exception as exc:
+        logger.warning("Prometheus metrics disabled after instrumentation failure: %s", exc)
+else:
+    logger.info("Prometheus metrics disabled; set ENABLE_PROMETHEUS=true to expose /metrics")
 
 
 # ===== Global Exception Handlers =====

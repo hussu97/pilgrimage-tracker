@@ -450,6 +450,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web build-time vars g
 | `ADSENSE_PUBLISHER_ID` | — | — | AdSense publisher ID. Required only for AdSense-backed slots. |
 | `AD_SLOTS_JSON` | — | — | JSON object keyed by customer-web slot name. Use Adsterra slot objects such as `{"home-feed":{"provider":"adsterra","type":"banner","key":"zone","width":320,"height":50}}`. Overrides seeded slot defaults when set. |
 | `SENTRY_DSN` | — | — | Sentry DSN for backend errors. Shared with scraper-api via Compose. |
+| `ENABLE_PROMETHEUS` | — | `false` | When `true`, catalog-api exposes `/metrics` via Prometheus FastAPI instrumentation. Keep disabled unless actively scraping metrics. |
 | `CATALOG_SYNC_LOG_DIR` | — | `/tmp/soulstep-catalog-sync` | Directory inside catalog-api where detached direct scraper-to-catalog sync jobs write run-scoped logs. |
 
 Supported web ad slot keys: `home-feed`, `places-feed`, `explore-feed`, `explore-city-feed`, `journeys-feed`, `blog-list-feed`, `place-detail-top`, `place-detail-mid`, `place-detail-bottom`, `checkins-top`, `checkins-mid`, `favorites-feed`, `group-detail-bottom`, `profile-bottom`, `notifications-bottom`, `global-social-bar`, `global-popunder`.
