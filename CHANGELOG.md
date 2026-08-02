@@ -4,6 +4,69 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-08-02] — GCP cost audit remediation + expired-TLS incident
+
+### Incidents fixed
+
+- **TLS certificate had been expired since 18 Jul 2026.** `catalog-api.soul-step.org` and
+  `scraper-api.soul-step.org` were serving a cert that expired 15 days earlier, so every HTTPS
+  client (browsers, the Vercel frontends) failed with `certificate has expired`. Cause: the
+  `certbot` container defined in `docker-compose.prod.yml` was not running, so the 12-hourly
+  renewal loop never executed. Renewed (now valid to 31 Oct 2026), reloaded nginx, restarted the
+  certbot container, and documented the failure mode in PRODUCTION.md § 6 — the service has no
+  `restart:` policy, so it stays down after any `docker compose stop` or VM reboot.
+- **Ops Agent fluent-bit was stuck in an infinite retry loop.** `cannot increase buffer:
+  current=4192 requested=36960` → `http_do=-1` on every flush, forever. Cost: ~10.8 M Cloud
+  Logging API requests/month, ~38 KB/s constant egress (~90 GB/mo), ~2 % CPU, and 587 MB of its
+  own error logs — with **zero** entries reaching Cloud Logging. Disabled the logging sub-agent
+  (metrics kept). VM egress dropped 38 KB/s → 2 KB/s.
+- **Boot disk was 95 % full** (991 MB free of 20 GB) — a write-failure incident waiting to happen
+  for Postgres. Reclaimed 4.8 GB (journal vacuum 1.7 GB, fluent-bit logs 587 MB, dangling Docker
+  images/build cache 571 MB); now 69 %. Capped journald at 200 MB.
+
+### Infrastructure
+
+- Boot disk migrated **pd-ssd → pd-balanced** via snapshot + swap (~$1.74/mo, and at 20 GB
+  pd-balanced's 3,000 baseline IOPS actually beats pd-ssd's 600). Rollback snapshot
+  `soulstep-vm-preswap-20260802` retained. Static IP and internal IP `10.132.0.2` preserved —
+  both are hardcoded in `SCRAPER_CLOUD_RUN_DATABASE_URL` and `BROWSER_PROXY_LIST`.
+- Deleted the **`europe-west2` and `europe-west4` Cloud Run Jobs and Artifact Registry repos**
+  (~4.5 GB of images; last execution 2026-04-24). Scraper parallelism drops 11 → 3 concurrent
+  tasks; egress-IP diversity is unaffected because Maps traffic already routes through the VM's
+  tinyproxy.
+- Applied an **Artifact Registry cleanup policy** to `europe-west1` (keep 5 most recent, delete
+  untagged > 7 d, delete > 30 d) — it had 360 image versions / 30.5 GB with the existing policy
+  stuck in `cleanupPolicyDryRun: true`, so nothing had ever been deleted.
+- **Maps Platform API key restricted** from 32 Maps services down to `places.googleapis.com` +
+  `geocoding-backend.googleapis.com`, and locked to the VM's IP. It is only used server-side by
+  `catalog-api` (`app/api/v1/search.py`) and had no browser or IP restriction at all.
+- Added a **$20/month budget** on the project with alerts at 75 % and 100 %.
+
+### Backend
+
+- **`soulstep-catalog-api/Dockerfile`** — uvicorn now runs with `--proxy-headers
+  --forwarded-allow-ips='*'`. Without these, Starlette left `request.client.host` as the nginx
+  container's docker-network IP, so `slowapi`'s `get_remote_address()` returned the same key for
+  every caller and all `@limiter.limit()` decorators (`main`, `auth`, `search`, `analytics`) were
+  silently acting as one shared global bucket instead of per-IP limits.
+- **`nginx/conf.d/cloudflare-real-ip.conf`** (new) — `set_real_ip_from` for all Cloudflare IPv4/
+  IPv6 ranges plus `real_ip_header CF-Connecting-IP`, wired in via `nginx/Dockerfile`. Prepares
+  the origin for putting Cloudflare in front; without it the `limit_req_zone
+  $binary_remote_addr` bucket in `nginx.conf` would collapse into a single global limit. Safe
+  while Cloudflare is off — only those ranges are trusted.
+- **`docker-compose.prod.yml`, `.env.example`** — `CLOUD_RUN_REGIONS` default reduced to
+  `europe-west1:3`.
+
+### Docs
+
+- **PRODUCTION.md** — new § 6a Cloudflare runbook (origin work done; DNS/nameserver steps remain
+  manual); § 6 certbot failure-mode warning; § 13 rewritten for the disabled logging sub-agent
+  with re-enable instructions; § 16 cost estimate corrected (it listed `e2-micro` when the
+  instance is and was `e2-small`) and expanded.
+- **ARCHITECTURE.md**, **docs/backend-gcp-project-migration.md** — single-region dispatch.
+
+---
+
 ## [2026-06-18] — Scraper coordinate fallback fix
 
 ### Backend

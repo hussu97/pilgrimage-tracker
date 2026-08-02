@@ -216,9 +216,17 @@ catalog-api shared place-ingest service  →  catalog DB upserts places
 
 | Env var | Example |
 |---|---|
-| `CLOUD_RUN_REGIONS` | `europe-west1:3,europe-west4:5,europe-west2:5` |
+| `CLOUD_RUN_REGIONS` | `europe-west1:3` |
 
 Each region gets an independent quota. The queue processor distributes jobs across regions based on available capacity. Only jobs are spread across regions — catalog-api and scraper-api stay on the primary VM.
+
+> **2026-08-02 — reduced to a single region.** The `europe-west4` and
+> `europe-west2` Cloud Run Jobs and their Artifact Registry repos were deleted
+> to cut standing storage cost (~4.5 GB of images for regions that had not
+> executed since 2026-04-24). Because all Maps browser traffic egresses through
+> the VM's tinyproxy (`BROWSER_PROXY_LIST`), the extra regions bought
+> parallelism (11 concurrent tasks → 3), not egress-IP diversity. To restore a
+> region, see PRODUCTION.md § "Adding a Cloud Run job region".
 
 **Scraper backend:** Playwright grid search (3 km × 3 km cells), no API cost. Detail fetch now persists place/review asset work into a durable `ScrapedAsset` queue, preserves `source_image_urls` / `source_photo_urls`, and uploads to the production GCS bucket in parallel while detail fetch is still running. The `image_download` stage is now a bounded drain/barrier over leftover queued assets rather than the primary image path.
 

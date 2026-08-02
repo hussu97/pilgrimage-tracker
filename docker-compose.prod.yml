@@ -152,7 +152,12 @@ services:
       SCRAPER_TRIGGER_SEO_AFTER_SYNC: ${SCRAPER_TRIGGER_SEO_AFTER_SYNC:-false}
       SCRAPER_DIRECT_CATALOG_SYNC: ${SCRAPER_DIRECT_CATALOG_SYNC:-true}
       # ── Cloud Run dispatch (regions list) ─────────────────────────────────
-      CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:4,europe-west2:4}
+      # europe-west2 / europe-west4 jobs + Artifact Registry repos were deleted
+      # 2026-08-02 (cost). All Maps traffic egresses via the VM's tinyproxy
+      # regardless of region, so the extra regions bought parallelism, not IP
+      # diversity. To restore: recreate the job + AR repo in that region, push
+      # the image, then append `,<region>:<max_jobs>` below.
+      CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3}
       # ── Browser grid / Playwright pool ────────────────────────────────────
       BROWSER_GRID_CELL_SIZE_KM: ${BROWSER_GRID_CELL_SIZE_KM:-3.0}
       MAPS_BROWSER_POOL_SIZE: ${MAPS_BROWSER_POOL_SIZE:-}
