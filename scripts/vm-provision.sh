@@ -28,32 +28,49 @@ log() { echo "[vm-provision] $*"; }
 # makes VM memory/disk observable at all.
 OPS_CFG=/etc/google-cloud-ops-agent/config.yaml
 if [ -f "$OPS_CFG" ]; then
-  if ! grep -q "SOULSTEP-DISABLED-LOGGING" "$OPS_CFG"; then
+  # Guard on the actual YAML key, not a marker comment. A marker-based check
+  # appends a SECOND `logging:` block whenever the key was added by any other
+  # means (e.g. by hand) — duplicate top-level keys make the config invalid and
+  # google-cloud-ops-agent.service then fails to start, taking metrics down with
+  # it. Found exactly that way while testing this script.
+  if [ "$(grep -cE '^logging:' "$OPS_CFG")" -eq 0 ]; then
     log "disabling ops-agent logging pipeline"
     sudo tee -a "$OPS_CFG" >/dev/null <<'EOF'
 
-# SOULSTEP-DISABLED-LOGGING (managed by scripts/vm-provision.sh)
-# See the script for why. Re-enable only after confirming the flush bug is gone.
+# Managed by scripts/vm-provision.sh — see that script for the rationale.
+# Re-enable only after confirming the fluent-bit flush bug is gone.
 logging:
   service:
     pipelines:
       default_pipeline:
         receivers: []
 EOF
-    sudo systemctl restart google-cloud-ops-agent || true
+    if ! sudo systemctl restart google-cloud-ops-agent; then
+      log "ERROR ops-agent failed to restart — check: sudo google_cloud_ops_agent_engine -in $OPS_CFG"
+    fi
   else
     log "ops-agent logging already disabled"
   fi
 fi
 
-if systemctl list-unit-files 2>/dev/null | grep -q google-cloud-ops-agent-fluent-bit; then
-  if [ "$(systemctl is-enabled google-cloud-ops-agent-fluent-bit 2>/dev/null || echo unknown)" != "masked" ]; then
-    log "masking fluent-bit sub-agent"
-    sudo systemctl stop google-cloud-ops-agent-fluent-bit || true
-    sudo systemctl mask google-cloud-ops-agent-fluent-bit || true
-  else
-    log "fluent-bit already masked"
-  fi
+# No pipeline here on purpose. `systemctl list-unit-files | grep -q X` looks
+# natural but is broken under `set -o pipefail`: grep -q exits on first match,
+# systemctl dies of SIGPIPE, and the pipeline reports failure — so the guard is
+# always false and the mask silently never happens. That bug was caught by
+# running this script rather than reading it.
+#
+# `is-enabled` gives everything needed with no pipe: "" when the unit does not
+# exist (exit != 0, nothing on stdout), otherwise "masked"/"enabled"/"disabled".
+FB_UNIT=google-cloud-ops-agent-fluent-bit
+FB_STATE=$(systemctl is-enabled "$FB_UNIT" 2>/dev/null || true)
+if [ -z "$FB_STATE" ]; then
+  log "fluent-bit unit not present — skipping"
+elif [ "$FB_STATE" = "masked" ]; then
+  log "fluent-bit already masked"
+else
+  log "masking fluent-bit sub-agent (was: $FB_STATE)"
+  sudo systemctl stop "$FB_UNIT" || true
+  sudo systemctl mask "$FB_UNIT" || true
 fi
 
 # ── 2. Cap journald ───────────────────────────────────────────────────────────
