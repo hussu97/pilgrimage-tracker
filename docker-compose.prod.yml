@@ -216,6 +216,12 @@ services:
 
   certbot:
     image: certbot/certbot:latest
+    # Without this the renewal loop does not survive a VM reboot or a
+    # `docker compose stop`, and nothing tells you — the cert just quietly ages
+    # out. That is exactly what happened: the container was down, the cert
+    # expired 2026-07-18, and both APIs served an expired cert for 15 days
+    # until the 2026-08-02 audit found it.
+    restart: always
     volumes:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
