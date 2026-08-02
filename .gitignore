@@ -20,6 +20,11 @@ apps/web/vite.config.d.ts
 .env.test.local
 .env.production.local
 
+# Let's Encrypt state on the VM — contains live private keys (privkey*.pem).
+# Bind-mounted at /opt/soulstep/certbot by docker-compose.prod.yml. It sat
+# untracked-but-not-ignored, one `git add -A` away from being committed.
+certbot/
+
 # Logs and debug
 npm-debug.log*
 yarn-debug.log*

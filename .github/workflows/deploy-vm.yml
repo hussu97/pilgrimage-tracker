@@ -344,6 +344,21 @@ jobs:
           # Recreate nginx on every deploy so .env changes (e.g. USE_SSL) are always picked up
           docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
 
+          # Certbot renewal loop. This step used to be missing entirely, which is
+          # how the cert came to expire on 2026-07-18 and sit expired for 15 days:
+          # the container was down, no deploy ever brought it back, and an expired
+          # cert fails closed for every HTTPS client.
+          # It has `restart: always` in the compose file, but that only survives
+          # reboots — it does not start a container that was never created.
+          docker compose -f docker-compose.prod.yml up -d certbot
+
+          # VM-level config that would otherwise exist only as hand-made state:
+          # ops-agent logging kept off, journald/docker log caps, cert watchdog.
+          # Idempotent — safe on every deploy.
+          if [ -x scripts/vm-provision.sh ]; then
+            bash scripts/vm-provision.sh
+          fi
+
           # Prune old images to save disk space
           docker image prune -f
 
