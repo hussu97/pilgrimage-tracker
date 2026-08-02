@@ -248,32 +248,14 @@ GPTBot / ClaudeBot / PerplexityBot.
   --forwarded-allow-ips='*'` so `request.client.host` is the real client, not the nginx
   container IP. **This ships on the next CI build of `soulstep-catalog-api`.**
 
-**Remaining manual steps** (needs the Cloudflare + Namecheap accounts):
+**Remaining manual steps** need the Cloudflare + Namecheap logins. The full runbook —
+including a **pre-migration snapshot of every DNS record** taken 2026-08-02, the cutover
+sequence, post-cutover verification, and an optional firewall lockdown that restricts the origin
+to Cloudflare ranges — is in **[docs/cloudflare-migration.md](docs/cloudflare-migration.md)**.
 
-1. Add `soul-step.org` to Cloudflare (Free plan) → it imports existing DNS records.
-2. **Check the imported records before switching nameservers** — the apex `A` record points at
-   Vercel (`216.198.79.1`) and any MX/TXT records must survive the move.
-3. Set the nameservers at Namecheap to the two Cloudflare ones. Propagation is usually
-   < 1 h. The apex stays on Vercel; only the two API subdomains change behaviour.
-4. In Cloudflare DNS, set **`catalog-api`** and **`scraper-api`** to **Proxied** (orange cloud).
-   Leave the apex/`www` as-is (DNS-only) so Vercel keeps serving the frontends.
-5. SSL/TLS mode → **Full (strict)**. The origin has a valid Let's Encrypt cert, so strict works.
-6. Keep port 80 open on the origin — certbot's HTTP-01 challenge goes through Cloudflare and
-   needs `/.well-known/acme-challenge/` to reach nginx. Add a Cloudflare **Cache Rule** to
-   bypass cache for `/.well-known/*` if renewals start failing.
-7. Optional: enable **Bot Fight Mode** and a Cache Rule for `/api/v1/places*` honouring origin
-   `Cache-Control`.
-
-**Verify afterwards:**
-
-```bash
-curl -sI https://catalog-api.soul-step.org/health | grep -i "cf-ray\|server"   # expect cf-ray
-# origin should now log real client IPs, not 172.71.x / 162.158.x
-docker compose -f /opt/soulstep/docker-compose.prod.yml logs --tail=20 nginx
-```
-
-If origin logs still show Cloudflare ranges, `cloudflare-real-ip.conf` did not load —
-check `docker exec soulstep-nginx-1 ls /etc/nginx/conf.d/`.
+Read that before touching DNS. The one record most likely to break things is
+`resend._domainkey` (DKIM) — if Cloudflare's zone import misses it, transactional email starts
+failing silently.
 
 ---
 
