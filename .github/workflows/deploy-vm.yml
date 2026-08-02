@@ -22,7 +22,14 @@ env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID != '' && vars.GCP_PROJECT_ID || 'project-fa2d7f52-2bc4-4a46-8ae' }}
   SA_EMAIL: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT || 'github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com' }}
   WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_WIF_PROVIDER || 'projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider' }}
-  EXTRA_JOB_REGIONS: ${{ vars.CLOUD_RUN_EXTRA_JOB_REGIONS != '' && vars.CLOUD_RUN_EXTRA_JOB_REGIONS || 'europe-west4,europe-west2' }}
+  # Empty by default since 2026-08-02. This used to fall back to
+  # 'europe-west4,europe-west2'; those jobs and their Artifact Registry repos
+  # were deleted (dormant since 2026-04-24, ~4.5 GB of stored images), and the
+  # "Upsert scraper job in extra regions" step below would have silently
+  # recreated them on the next deploy. Keep in step with CLOUD_RUN_REGIONS in
+  # docker-compose.prod.yml. To bring a region back, set the
+  # CLOUD_RUN_EXTRA_JOB_REGIONS repo variable and add it there too.
+  EXTRA_JOB_REGIONS: ${{ vars.CLOUD_RUN_EXTRA_JOB_REGIONS }}
   CLOUD_RUN_JOB_NAME: ${{ vars.CLOUD_RUN_JOB_NAME != '' && vars.CLOUD_RUN_JOB_NAME || 'soulstep-scraper-api-job' }}
 
 jobs:
