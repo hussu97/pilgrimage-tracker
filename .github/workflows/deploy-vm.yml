@@ -331,16 +331,30 @@ jobs:
             catalog-api scraper-api
 
           # Wait for both services to be healthy (30 × 5s = 150s max)
+          #
+          # `< /dev/null` on both exec calls is load-bearing, not tidiness.
+          # This whole script is piped to `bash -s` over ssh, so bash reads it
+          # from stdin as it goes. `docker compose exec -T` also reads stdin and
+          # forwards it to the container — so without the redirect it swallows
+          # the remainder of the script. bash then finds nothing left to read
+          # and exits 0, and the step is reported as a success.
+          #
+          # Everything after this loop had therefore been silently skipped on
+          # every deploy for months: the nginx force-recreate below (so the
+          # "picked up on every deploy" comment was never true), `docker image
+          # prune` (a contributor to the boot disk reaching 95% full), and the
+          # final `ps`. Confirmed by diffing the 2026-06-18 and 2026-08-02 run
+          # logs — both end at "Both services healthy", nothing after it.
           echo "Waiting for services to be healthy..."
           for i in $(seq 1 30); do
             CAT_OK=false
             SCR_OK=false
             docker compose -f docker-compose.prod.yml exec -T catalog-api \
               python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')" \
-              > /dev/null 2>&1 && CAT_OK=true
+              > /dev/null 2>&1 < /dev/null && CAT_OK=true
             docker compose -f docker-compose.prod.yml exec -T scraper-api \
               python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" \
-              > /dev/null 2>&1 && SCR_OK=true
+              > /dev/null 2>&1 < /dev/null && SCR_OK=true
             if [ "$CAT_OK" = "true" ] && [ "$SCR_OK" = "true" ]; then
               echo "Both services healthy after ${i} checks."
               break
