@@ -257,7 +257,7 @@ Update these existing secrets for the new backend project:
 | `GCS_BUCKET_NAME` | new image bucket |
 | `BACKUP_GCS_BUCKET` | new backup bucket |
 | `CLOUD_RUN_CATALOG_URL` | `http://<NEW_VM_EXTERNAL_IP>:3000` |
-| `CLOUD_RUN_REGIONS` | `europe-west1:3,europe-west4:5,europe-west2:5` |
+| `CLOUD_RUN_REGIONS` | `europe-west1:3` |
 
 All other runtime secrets stay the same unless you intentionally rotate them.
 

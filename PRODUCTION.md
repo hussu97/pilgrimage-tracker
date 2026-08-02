@@ -204,6 +204,59 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
 Certs auto-renew every 12 h via the certbot container in `docker-compose.prod.yml`. If the ACME
 challenge fails, verify nginx is up in HTTP-only mode and port 80 is open in GCP firewall.
 
+> ⚠️ **The renewal loop only runs if the `certbot` container is actually up.**
+> On 2026-08-02 the cert was found expired (18 Jul) because the `certbot`
+> service was not running — `docker compose ... stop` and manual restarts of
+> individual services leave it down, and it has **no `restart:` policy**, so it
+> does not come back after a VM reboot either. After any `docker compose stop`,
+> full restart, or VM reboot, run:
+>
+> ```bash
+> docker compose -f /opt/soulstep/docker-compose.prod.yml up -d certbot
+> ```
+>
+> Check expiry any time with:
+>
+> ```bash
+> echo | openssl s_client -connect catalog-api.soul-step.org:443 \
+>   -servername catalog-api.soul-step.org 2>/dev/null | openssl x509 -noout -dates
+> ```
+>
+> A monthly calendar reminder (or an external uptime check that alerts on TLS
+> expiry) is the cheap backstop — an expired cert takes the whole API down for
+> every browser and the Vercel frontends.
+
+---
+
+## 6a. Cloudflare (free tier) in front of the APIs
+
+Not yet enabled — DNS for `soul-step.org` is on Namecheap (`dns1/dns2.registrar-servers.com`),
+and `catalog-api` / `scraper-api` resolve straight to the VM (`34.76.105.103`).
+
+**Why:** the API already sets `Cache-Control` (`max-age=600` on places, `31536000 immutable`
+on images) and gzips responses, so a Cloudflare edge absorbs most repeat traffic, cuts VM
+egress toward zero, and adds free bot rules — useful because `robots.txt` deliberately invites
+GPTBot / ClaudeBot / PerplexityBot.
+
+**Origin side is already done** (2026-08-02):
+
+- `nginx/conf.d/cloudflare-real-ip.conf` — `set_real_ip_from` for all Cloudflare ranges plus
+  `real_ip_header CF-Connecting-IP`. Without this every request would arrive as a Cloudflare
+  edge IP and the `limit_req_zone $binary_remote_addr` bucket in `nginx.conf` would become one
+  global limit. Safe while Cloudflare is off — only those ranges are trusted.
+- `soulstep-catalog-api/Dockerfile` — uvicorn now runs with `--proxy-headers
+  --forwarded-allow-ips='*'` so `request.client.host` is the real client, not the nginx
+  container IP. **This ships on the next CI build of `soulstep-catalog-api`.**
+
+**Remaining manual steps** need the Cloudflare + Namecheap logins. The full runbook —
+including a **pre-migration snapshot of every DNS record** taken 2026-08-02, the cutover
+sequence, post-cutover verification, and an optional firewall lockdown that restricts the origin
+to Cloudflare ranges — is in **[docs/cloudflare-migration.md](docs/cloudflare-migration.md)**.
+
+Read that before touching DNS. The one record most likely to break things is
+`resend._domainkey` (DKIM) — if Cloudflare's zone import misses it, transactional email starts
+failing silently.
+
 ---
 
 ## 7. CI/CD
@@ -399,7 +452,7 @@ gcloud run jobs create soulstep-scraper-api-job --region "$NEW_REGION" \
   --memory 6Gi --cpu 4 --task-timeout 86400 --max-retries 1
 ```
 4. Grant `roles/run.jobsExecutorWithOverrides` to the deploy service account.
-5. Update `CLOUD_RUN_REGIONS` in `deploy-vm.yml`: `europe-west1:3,europe-west4:5,europe-west2:5,$NEW_REGION:5`
+5. Update `CLOUD_RUN_REGIONS` in `deploy-vm.yml`: `europe-west1:3,$NEW_REGION:5`
 6. Add `$NEW_REGION` to `EXTRA_JOB_REGIONS` in `deploy-vm.yml` so CI auto-deploys future images.
 
 ### Quota Budget (europe-west1 — primary region)
@@ -477,7 +530,7 @@ Supported web ad slot keys: `home-feed`, `places-feed`, `explore-feed`, `explore
 | `SCRAPER_DISPATCH` | — | `local` | `local` — in-process. `cloud_run` — Cloud Run Job. **Set `cloud_run` in production.** |
 | `CLOUD_RUN_JOB_NAME` | — | `soulstep-scraper-api-job` | Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGION` | — | `us-central1` | Fallback region. Required when `SCRAPER_DISPATCH=cloud_run`. |
-| `CLOUD_RUN_REGIONS` | — | `europe-west1:3,europe-west4:5,europe-west2:5` | Multi-region config. Stored in GitHub runtime secrets and written into the VM `.env`. |
+| `CLOUD_RUN_REGIONS` | — | `europe-west1:3` | Multi-region config. Stored in GitHub runtime secrets and written into the VM `.env`. Single region since 2026-08-02 — see ARCHITECTURE.md § Multi-region dispatch. |
 | `SCRAPER_CLOUD_RUN_DATABASE_URL` | — | — | Postgres DSN for the Cloud Run Job, using the VM's internal GCP IP (`10.132.0.2`). Passed as `DATABASE_URL` override when dispatching. Falls back to `DATABASE_URL` (docker-internal) when unset — only safe when `SCRAPER_DISPATCH=local`. |
 | `GOOGLE_CLOUD_PROJECT` | — | — | GCP project ID. Required for Cloud Run Job dispatch. |
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for scraped images. Must match catalog-api's value. |
@@ -575,7 +628,46 @@ docker stats --no-stream   # memory / CPU usage
 
 ### Cloud Ops Agent + Sentry
 
-The VM runs the **Cloud Ops Agent** — forwards container stdout/stderr to Cloud Logging (GCP Console → Log Explorer, filter `resource.type="gce_instance"`).
+The VM runs the **Cloud Ops Agent**. As of **2026-08-02 its logging sub-agent is disabled** —
+only the metrics sub-agent (`google-cloud-ops-agent-opentelemetry-collector`) runs.
+
+**Why:** fluent-bit could not flush to Cloud Logging —
+
+```
+[warn] [http_client] cannot increase buffer: current=4192 requested=36960 max=4192
+[warn] [output:stackdriver:stackdriver.1] http_do=-1
+[warn] [engine] failed to flush chunk '...', retry in 6 seconds
+```
+
+— and retried forever. Measured cost of that loop: **~10.8 M Cloud Logging API requests/month
+(≈ 4.2/s), ~38 KB/s of constant egress (≈ 90 GB/month), ~2 % CPU, and 587 MB of its own error
+logs**, while **zero** entries actually reached Cloud Logging. It also filled `/var/log/journal`
+to 2 GB and pushed the 20 GB boot disk to **95 % full**. Disabling it dropped VM egress from
+38 KB/s to 2 KB/s.
+
+```bash
+# Current state
+systemctl is-enabled google-cloud-ops-agent-fluent-bit          # masked
+systemctl is-active  google-cloud-ops-agent-opentelemetry-collector   # active
+```
+
+Container logs therefore live only on the VM (`docker compose logs`) and errors go to Sentry.
+`journald` is now capped at 200 MB (`SystemMaxUse=200M` in `/etc/systemd/journald.conf`).
+
+**To re-enable Cloud Logging** (only worth it after confirming the flush bug is fixed —
+upgrading `google-cloud-ops-agent` past 2.64.0 is the likely fix):
+
+```bash
+sudo systemctl unmask google-cloud-ops-agent-fluent-bit
+# remove the `logging: service: pipelines: default_pipeline: receivers: []`
+# block appended to /etc/google-cloud-ops-agent/config.yaml
+sudo systemctl restart google-cloud-ops-agent
+# then confirm entries actually land:
+gcloud logging read 'resource.type="gce_instance"' --freshness=10m --limit=5
+```
+
+Container logs are uncapped `json-file` (no `/etc/docker/daemon.json`). If the disk fills again,
+add `log-opts: {max-size: 10m, max-file: 3}` there.
 
 **Sentry DSNs** — check dashboard after every deploy:
 
@@ -626,15 +718,32 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate catalog-api
 
 ## 16. Cost Estimate
 
-| Resource | Monthly |
-|---|---|
-| VM e2-micro (europe-west1) | ~$6.11 |
-| 20 GB pd-ssd boot disk | ~$3.74 |
-| GCS `soulstep-images` | ~$0.50 |
-| GCS `soulstep-db-backups` (~1 GB rolling, 7-day retention) | ~$0.02 |
-| GHCR (public packages) | $0 |
-| Cloud Run scraper Job (pay per use, ~$0.40/job-hour) | ~$0–1 |
-| Artifact Registry (3 regions × ~$0.50–1.00) | ~$1.50–3.00 |
-| **Total** | **~$11.90–14.40/mo (~$0.40/day)** |
+Estimates from resource inventory × list price — there is no BigQuery billing export on this
+billing account, so these are not invoice figures. Updated 2026-08-02.
+
+| Resource | Monthly | Note |
+|---|---|---|
+| VM **e2-small** (europe-west1) | ~$13.50 | table previously said e2-micro; the instance is and was `e2-small` |
+| 20 GB **pd-balanced** boot disk | ~$2.00 | was pd-ssd (~$3.74) until 2026-08-02 |
+| Static external IP (in use) | ~$2.90 | |
+| GCS `soulstep-images` (52.9 GB, 1.2 M objects) | ~$1.06 | Standard; only ~308 MB read/month |
+| GCS `soulstep-db-backups` (374 MB) | ~$0.01 | |
+| Boot-disk snapshot `soulstep-vm-preswap-20260802` (5.3 GB) | ~$0.14 | rollback point for the pd-balanced swap; delete once settled |
+| GHCR (public packages) | $0 | |
+| Cloud Run scraper Job (pay per use) | ~$0 idle | 4 vCPU + 6 GiB ≈ **$0.40/task-hour** when running |
+| Artifact Registry (europe-west1 only) | ~$0.20–3.00 | 30.5 GB before the 2026-08-02 cleanup policy; shrinks as the policy runs |
+| **Total** | **~$20–23/mo** | |
 
 Cloud Run idle cost is $0 — jobs only bill during execution.
+
+**Budget alert:** the billing account has a $20/month budget on this project with email alerts
+at 75 % ($15) and 100 % ($20).
+
+**Known remaining levers** (not applied):
+
+- Moving the VM to Hetzner CX22 (~€3.79, 2 vCPU / 4 GB) or Oracle Always Free would save
+  ~$10–13.50/mo and roughly double RAM — the whole stack is one `docker-compose.prod.yml`.
+- `soulstep-images` is read at 0.6 % of its stored volume; a lifecycle rule to Nearline after
+  30 days roughly halves that line. Re-encoding to WebP/AVIF (currently ~44 KB average across
+  1.2 M objects) would cut it further and reduce page weight.
+- Soft-delete (7 days) is enabled on all three buckets and is billed at live-data rates.

@@ -22,7 +22,14 @@ env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID != '' && vars.GCP_PROJECT_ID || 'project-fa2d7f52-2bc4-4a46-8ae' }}
   SA_EMAIL: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT || 'github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com' }}
   WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_WIF_PROVIDER || 'projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider' }}
-  EXTRA_JOB_REGIONS: ${{ vars.CLOUD_RUN_EXTRA_JOB_REGIONS != '' && vars.CLOUD_RUN_EXTRA_JOB_REGIONS || 'europe-west4,europe-west2' }}
+  # Empty by default since 2026-08-02. This used to fall back to
+  # 'europe-west4,europe-west2'; those jobs and their Artifact Registry repos
+  # were deleted (dormant since 2026-04-24, ~4.5 GB of stored images), and the
+  # "Upsert scraper job in extra regions" step below would have silently
+  # recreated them on the next deploy. Keep in step with CLOUD_RUN_REGIONS in
+  # docker-compose.prod.yml. To bring a region back, set the
+  # CLOUD_RUN_EXTRA_JOB_REGIONS repo variable and add it there too.
+  EXTRA_JOB_REGIONS: ${{ vars.CLOUD_RUN_EXTRA_JOB_REGIONS }}
   CLOUD_RUN_JOB_NAME: ${{ vars.CLOUD_RUN_JOB_NAME != '' && vars.CLOUD_RUN_JOB_NAME || 'soulstep-scraper-api-job' }}
 
 jobs:
@@ -343,6 +350,21 @@ jobs:
 
           # Recreate nginx on every deploy so .env changes (e.g. USE_SSL) are always picked up
           docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
+
+          # Certbot renewal loop. This step used to be missing entirely, which is
+          # how the cert came to expire on 2026-07-18 and sit expired for 15 days:
+          # the container was down, no deploy ever brought it back, and an expired
+          # cert fails closed for every HTTPS client.
+          # It has `restart: always` in the compose file, but that only survives
+          # reboots — it does not start a container that was never created.
+          docker compose -f docker-compose.prod.yml up -d certbot
+
+          # VM-level config that would otherwise exist only as hand-made state:
+          # ops-agent logging kept off, journald/docker log caps, cert watchdog.
+          # Idempotent — safe on every deploy.
+          if [ -x scripts/vm-provision.sh ]; then
+            bash scripts/vm-provision.sh
+          fi
 
           # Prune old images to save disk space
           docker image prune -f
