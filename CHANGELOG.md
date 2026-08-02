@@ -57,6 +57,34 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **`docker-compose.prod.yml`, `.env.example`** — `CLOUD_RUN_REGIONS` default reduced to
   `europe-west1:3`.
 
+### CI/CD — VM state moved into the pipeline
+
+Every VM-level fix above was applied by hand, so a VM rebuild would have silently reintroduced
+all of it. It now runs from the repo on every deploy.
+
+- **`.github/workflows/deploy-vm.yml`** — added `docker compose up -d certbot`. The deploy step
+  never started certbot, which is *why* the cert expired: the container was down and no deploy
+  ever brought it back. `restart: always` survives reboots but cannot start a container that was
+  never created. Also invokes `scripts/vm-provision.sh`.
+- **`scripts/vm-provision.sh`** (new, idempotent) — keeps the ops-agent logging sub-agent
+  disabled and fluent-bit masked, caps journald at 200 MB, adds Docker `json-file` log rotation
+  (`max-size: 10m`, `max-file: 3`), and installs the cert watchdog cron.
+- **`scripts/check-cert-expiry.sh`** (new) — daily check, alerts via the Resend key already in
+  `.env` if under 21 days. certbot renews at 30, so crossing 21 means renewal is failing. No
+  added monthly cost.
+- **`.gitignore`** — added `certbot/`. It holds live private keys, was untracked but not
+  ignored, and was one `git add -A` away from being committed.
+
+Renewal verified end-to-end against the Let's Encrypt **staging** endpoint:
+`certbot renew --dry-run` → *"Congratulations, all simulated renewals succeeded"* for both
+lineages. Note there are two lineages (`soul-step.org` and `catalog-api.soul-step.org`) covering
+the same two SANs; nginx uses the former. Harmless at a 60-day cadence but worth collapsing.
+
+Two bugs in `vm-provision.sh` were caught by *running* it rather than reviewing it: a
+`systemctl list-unit-files | grep -q` guard that is always false under `set -o pipefail`
+(SIGPIPE), and a marker-based idempotency check that appended a duplicate `logging:` key and
+took the ops-agent down. Both fixed and verified idempotent.
+
 ### Docs
 
 - **PRODUCTION.md** — new § 6a Cloudflare runbook (origin work done; DNS/nameserver steps remain
